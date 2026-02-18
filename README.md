@@ -18,6 +18,20 @@ Typical path on macOS:
 
 `World of Warcraft/_classic_/Interface/AddOns/TickPulse/`
 
+## Quick update script (Windows)
+
+Run this from the repository root in PowerShell:
+
+`./deploy-addon.ps1`
+
+By default it copies repository files (excluding `.git` and the script itself) to:
+
+`C:\Program Files (x86)\World of Warcraft\_anniversary_\Interface\AddOns\TickPulse`
+
+Optional custom destination:
+
+`./deploy-addon.ps1 -Destination "D:\Games\WoW\_anniversary_\Interface\AddOns\TickPulse"`
+
 ## Commands
 
 - `/tpulse show`
