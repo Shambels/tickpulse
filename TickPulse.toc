@@ -1,0 +1,8 @@
+## Interface: 20504
+## Title: TickPulse
+## Notes: Visual tick tracker overlay for DoTs and HoTs.
+## Author: Shambles
+## Version: 0.1.0
+
+spells.lua
+core.lua
