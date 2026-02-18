@@ -1,6 +1,6 @@
 # TickPulse (TBC Anniversary MVP)
 
-TickPulse tracks your player-cast periodic auras and shows a rotating overlay on icon tiles:
+TickPulse tracks your player-cast periodic auras and shows a rotating overlay directly on the original aura icons:
 
 - DoTs: rotates from apply -> next damage tick, then resets every tick.
 - HoTs: rotates from apply -> next heal tick, then resets every tick.
@@ -23,6 +23,8 @@ Typical path on macOS:
 - `/tpulse show`
 - `/tpulse hide`
 - `/tpulse scan`
+- `/tpulse debug`
+- `/tpulse debug player|target|focus`
 
 ## Notes
 
@@ -30,7 +32,8 @@ Typical path on macOS:
 - Matching is done by localized spell name (from `GetSpellInfo`) and cached per runtime spell ID, so all ranks are covered.
 - Your `player` unit now tracks matching DoTs/HoTs cast by other players (`trackExternalOnPlayer = true` in `TickPulse.Config`).
 - If a spell ticks at a different cadence due to talents/procs, the addon learns from combat log deltas after first ticks.
-- Rendering is done in a separate tracker frame to avoid restricted Blizzard aura button manipulation in combat.
+- Rendering is done on Blizzard aura buttons (`target`, `focus`, and `player`) with a cooldown swipe overlay.
+- If a new overlay frame would need to be created during combat, TickPulse waits until out of combat to attach it.
 
 ## Next steps
 

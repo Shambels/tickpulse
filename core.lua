@@ -1,7 +1,6 @@
 local addonName, TickPulse = ...
 
 TickPulse.active = TickPulse.active or {}
-TickPulse.pool = TickPulse.pool or {}
 
 local frame = CreateFrame("Frame")
 TickPulse.frame = frame
@@ -40,43 +39,57 @@ function TickPulse:GetSpellInfo(spellId, spellName)
     return nil
 end
 
-function TickPulse:AcquireIcon()
-    if #self.pool > 0 then
-        local f = table.remove(self.pool)
-        f:Show()
-        return f
+function TickPulse:GetAuraButton(unit, spellType, auraIndex)
+    local frameName
+
+    if unit == "target" then
+        frameName = ((spellType == "DOT") and "TargetFrameDebuff" or "TargetFrameBuff") .. tostring(auraIndex)
+    elseif unit == "focus" then
+        frameName = ((spellType == "DOT") and "FocusFrameDebuff" or "FocusFrameBuff") .. tostring(auraIndex)
+    elseif unit == "player" then
+        frameName = ((spellType == "DOT") and "DebuffButton" or "BuffButton") .. tostring(auraIndex)
     end
 
-    local iconFrame = CreateFrame("Frame", nil, self.anchor)
-    iconFrame:SetSize(self.Config.iconSize, self.Config.iconSize)
+    if not frameName then
+        return nil
+    end
 
-    iconFrame.icon = iconFrame:CreateTexture(nil, "BACKGROUND")
-    iconFrame.icon:SetAllPoints()
-
-    iconFrame.border = iconFrame:CreateTexture(nil, "OVERLAY")
-    iconFrame.border:SetTexture("Interface\\Buttons\\UI-Quickslot2")
-    iconFrame.border:SetAllPoints()
-
-    iconFrame.cooldown = CreateFrame("Cooldown", nil, iconFrame, "CooldownFrameTemplate")
-    iconFrame.cooldown:SetAllPoints()
-    iconFrame.cooldown:SetDrawBling(false)
-    iconFrame.cooldown:SetDrawEdge(true)
-    iconFrame.cooldown:SetReverse(true)
-    iconFrame.cooldown:SetSwipeColor(1, 0.85, 0.1, 0.65)
-
-    iconFrame.label = iconFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    iconFrame.label:SetPoint("BOTTOM", iconFrame, "TOP", 0, 2)
-
-    return iconFrame
+    return _G[frameName]
 end
 
-function TickPulse:ReleaseIcon(iconFrame)
-    iconFrame:Hide()
-    iconFrame:ClearAllPoints()
-    iconFrame.spellKey = nil
-    iconFrame.unit = nil
-    iconFrame.label:SetText("")
-    table.insert(self.pool, iconFrame)
+function TickPulse:AcquireAuraOverlay(button)
+    if not button then
+        return nil
+    end
+
+    local overlay = button.TickPulseOverlay
+    if not overlay then
+        if InCombatLockdown() then
+            return nil
+        end
+
+        overlay = CreateFrame("Cooldown", nil, button, "CooldownFrameTemplate")
+        overlay:SetAllPoints(button)
+        overlay:SetDrawBling(false)
+        overlay:SetDrawEdge(true)
+        overlay:SetReverse(true)
+        overlay:SetSwipeColor(1, 0.85, 0.1, 0.65)
+        overlay:SetFrameLevel(button:GetFrameLevel() + 2)
+
+        button.TickPulseOverlay = overlay
+    end
+
+    overlay:Show()
+    return overlay
+end
+
+function TickPulse:HideAllOverlays()
+    for _, tracked in pairs(self.active) do
+        if tracked.overlay then
+            tracked.overlay:Hide()
+            tracked.overlay = nil
+        end
+    end
 end
 
 function TickPulse:CreateOrRefreshTracker(unit, unitGUID, spellId, auraData, sourceGUID)
@@ -102,7 +115,7 @@ function TickPulse:CreateOrRefreshTracker(unit, unitGUID, spellId, auraData, sou
             nextTick = t + spellInfo.interval,
             lastTick = nil,
             learned = false,
-            frame = nil,
+            overlay = nil,
         }
         self.active[key] = tracked
     else
@@ -112,6 +125,7 @@ function TickPulse:CreateOrRefreshTracker(unit, unitGUID, spellId, auraData, sou
 
     tracked.name = auraData.name
     tracked.icon = auraData.icon
+    tracked.auraIndex = auraData.auraIndex
     tracked.duration = auraData.duration or 0
     tracked.expirationTime = auraData.expirationTime or 0
 
@@ -130,9 +144,9 @@ function TickPulse:RemoveTracker(key)
         return
     end
 
-    if tracked.frame then
-        self:ReleaseIcon(tracked.frame)
-        tracked.frame = nil
+    if tracked.overlay then
+        tracked.overlay:Hide()
+        tracked.overlay = nil
     end
 
     self.active[key] = nil
@@ -178,6 +192,7 @@ function TickPulse:ScanUnit(unit)
                 TickPulse:CreateOrRefreshTracker(unit, unitGUID, auraSpellId, {
                     name = name,
                     icon = icon,
+                    auraIndex = i,
                     duration = duration,
                     expirationTime = expirationTime,
                     source = source,
@@ -236,14 +251,13 @@ function TickPulse:OnPeriodicTick(destGUID, spellId, sourceGUID)
     tracked.lastTick = t
     tracked.cycleStart = t
     tracked.nextTick = t + tracked.interval
-
-    if tracked.frame then
-        tracked.frame.cooldown:SetCooldown(tracked.cycleStart, tracked.interval)
-    end
 end
 
 function TickPulse:UpdateLayout()
-    local index = 0
+    if not self.Config.enabled then
+        self:HideAllOverlays()
+        return
+    end
 
     for _, tracked in pairs(self.active) do
         local t = now()
@@ -251,36 +265,29 @@ function TickPulse:UpdateLayout()
         if tracked.expirationTime and tracked.expirationTime > 0 and tracked.expirationTime <= t then
             self:RemoveTracker(tracked.key)
         else
-            if not tracked.frame then
-                tracked.frame = self:AcquireIcon()
+            local button = self:GetAuraButton(tracked.unit, tracked.spellType, tracked.auraIndex)
+
+            if not button or not button:IsShown() then
+                if tracked.overlay then
+                    tracked.overlay:Hide()
+                    tracked.overlay = nil
+                end
+            else
+                if tracked.overlay and tracked.overlay:GetParent() ~= button then
+                    tracked.overlay:Hide()
+                    tracked.overlay = nil
+                end
+
+                local overlay = tracked.overlay or self:AcquireAuraOverlay(button)
+                if overlay then
+                    tracked.overlay = overlay
+
+                    if tracked.interval and tracked.interval > 0 then
+                        overlay:SetCooldown(tracked.cycleStart, tracked.interval)
+                    end
+                end
             end
-
-            local f = tracked.frame
-            f.spellKey = tracked.key
-            f.unit = tracked.unit
-            f.icon:SetTexture(tracked.icon)
-            f.label:SetText(tracked.spellType)
-
-            if tracked.interval and tracked.interval > 0 then
-                f.cooldown:SetCooldown(tracked.cycleStart, tracked.interval)
-            end
-
-            local row = math.floor(index / self.Config.perRow)
-            local col = index % self.Config.perRow
-            local x = col * (self.Config.iconSize + self.Config.spacing)
-            local y = -row * (self.Config.iconSize + self.Config.spacing + 10)
-
-            f:ClearAllPoints()
-            f:SetPoint("TOPLEFT", self.anchor, "TOPLEFT", x, y)
-            f:Show()
-
-            index = index + 1
         end
-    end
-
-    -- Hide unused pooled icons just in case.
-    for _, iconFrame in ipairs(self.pool) do
-        iconFrame:Hide()
     end
 end
 
@@ -318,6 +325,31 @@ function TickPulse:OnCombatLogEvent()
     end
 end
 
+function TickPulse:DebugBindings(unitFilter)
+    local count = 0
+    if unitFilter then
+        print("TickPulse debug bindings (unit: " .. tostring(unitFilter) .. "):")
+    else
+        print("TickPulse debug bindings:")
+    end
+
+    for _, tracked in pairs(self.active) do
+        if not unitFilter or tracked.unit == unitFilter then
+            count = count + 1
+            local button = self:GetAuraButton(tracked.unit, tracked.spellType, tracked.auraIndex)
+            local buttonName = button and button:GetName() or "(missing)"
+            local overlayState = tracked.overlay and "overlay:on" or "overlay:off"
+            local spellLabel = tracked.name or ("spell:" .. tostring(tracked.spellId))
+
+            print(string.format("%s | unit:%s | index:%s | button:%s | %s", spellLabel, tostring(tracked.unit), tostring(tracked.auraIndex), tostring(buttonName), overlayState))
+        end
+    end
+
+    if count == 0 then
+        print("TickPulse: no active trackers" .. (unitFilter and (" for unit " .. tostring(unitFilter)) or "") .. ".")
+    end
+end
+
 local elapsedAccumulator = 0
 function TickPulse:OnUpdate(elapsed)
     elapsedAccumulator = elapsedAccumulator + elapsed
@@ -329,29 +361,8 @@ function TickPulse:OnUpdate(elapsed)
     self:UpdateLayout()
 end
 
-function TickPulse:InitUI()
-    self.anchor = CreateFrame("Frame", "TickPulseAnchor", UIParent)
-    self.anchor:SetSize(420, 180)
-    self.anchor:SetPoint("CENTER", UIParent, "CENTER", 0, -180)
-
-    self.anchor.bg = self.anchor:CreateTexture(nil, "BACKGROUND")
-    self.anchor.bg:SetAllPoints()
-    self.anchor.bg:SetColorTexture(0, 0, 0, 0.2)
-
-    self.anchor.title = self.anchor:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    self.anchor.title:SetPoint("TOPLEFT", self.anchor, "TOPLEFT", 8, -6)
-    self.anchor.title:SetText("TickPulse")
-
-    self.anchor:EnableMouse(true)
-    self.anchor:SetMovable(true)
-    self.anchor:RegisterForDrag("LeftButton")
-    self.anchor:SetScript("OnDragStart", function(f) f:StartMoving() end)
-    self.anchor:SetScript("OnDragStop", function(f) f:StopMovingOrSizing() end)
-end
-
 function TickPulse:HandleEvent(event, ...)
     if event == "PLAYER_LOGIN" then
-        self:InitUI()
         frame:SetScript("OnUpdate", function(_, elapsed) self:OnUpdate(elapsed) end)
         self:ScanAllUnits()
     elseif event == "PLAYER_ENTERING_WORLD" then
@@ -385,14 +396,28 @@ frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 SLASH_TICKPULSE1 = "/tickpulse"
 SLASH_TICKPULSE2 = "/tpulse"
 SlashCmdList.TICKPULSE = function(msg)
-    local cmd = string.lower((msg or ""):gsub("^%s+", ""):gsub("%s+$", ""))
+    local normalized = (msg or ""):gsub("^%s+", ""):gsub("%s+$", "")
+    local cmd, arg = normalized:match("^(%S+)%s*(.-)$")
+    cmd = string.lower(cmd or "")
+    arg = string.lower((arg or ""):gsub("^%s+", ""):gsub("%s+$", ""))
+
     if cmd == "hide" then
-        TickPulse.anchor:Hide()
+        TickPulse.Config.enabled = false
+        TickPulse:HideAllOverlays()
     elseif cmd == "show" then
-        TickPulse.anchor:Show()
+        TickPulse.Config.enabled = true
+        TickPulse:ScanAllUnits()
     elseif cmd == "scan" then
         TickPulse:ScanAllUnits()
+    elseif cmd == "debug" then
+        if arg == "" then
+            TickPulse:DebugBindings()
+        elseif arg == "player" or arg == "target" or arg == "focus" then
+            TickPulse:DebugBindings(arg)
+        else
+            print("TickPulse debug usage: /tpulse debug [player|target|focus]")
+        end
     else
-        print("TickPulse commands: /tpulse show | hide | scan")
+        print("TickPulse commands: /tpulse show | hide | scan | debug [player|target|focus]")
     end
 end

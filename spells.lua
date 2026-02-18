@@ -62,13 +62,11 @@ for _, entry in ipairs(seedSpells) do
 end
 
 TickPulse.Config = {
+    enabled = true,
     trackExternalOnPlayer = true,
     monitoredUnits = {
         "target", -- DoTs on target + HoTs if friendly target
         "player", -- HoTs/DoTs on self (including other-player casts when enabled)
         "focus",  -- optional second tracked unit
     },
-    iconSize = 30,
-    spacing = 6,
-    perRow = 10,
 }
