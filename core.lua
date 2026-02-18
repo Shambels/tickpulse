@@ -39,7 +39,142 @@ function TickPulse:GetSpellInfo(spellId, spellName)
     return nil
 end
 
-function TickPulse:GetAuraButton(unit, spellType, auraIndex)
+local function getButtonIconTexture(button)
+    if not button then
+        return nil
+    end
+
+    local iconRegion = button.icon
+        or button.Icon
+        or button.IconTexture
+        or (button.GetName and button:GetName() and _G[button:GetName() .. "Icon"])
+
+    if iconRegion and iconRegion.GetTexture then
+        return iconRegion:GetTexture()
+    end
+
+    return nil
+end
+
+local function texturesEqual(left, right)
+    if left == nil or right == nil then
+        return false
+    end
+
+    if left == right then
+        return true
+    end
+
+    local leftNumber = tonumber(left)
+    local rightNumber = tonumber(right)
+    if leftNumber and rightNumber then
+        return leftNumber == rightNumber
+    end
+
+    return tostring(left) == tostring(right)
+end
+
+local function findButtonByIcon(prefix, auraIndex, iconTexture)
+    local exact = _G[prefix .. tostring(auraIndex)]
+    if exact then
+        local exactTexture = getButtonIconTexture(exact)
+        if exact:IsShown() and ((not iconTexture and exactTexture ~= nil) or texturesEqual(exactTexture, iconTexture)) then
+            return exact
+        end
+    end
+
+    if not iconTexture then
+        if exact and exact:IsShown() then
+            return exact
+        end
+    end
+
+    local bestMatch = nil
+    for i = 1, 40 do
+        local candidate = _G[prefix .. tostring(i)]
+        if candidate then
+            local candidateTexture = getButtonIconTexture(candidate)
+            if candidate:IsShown() and texturesEqual(candidateTexture, iconTexture) then
+                if candidate.GetID and candidate:GetID() == auraIndex then
+                    return candidate
+                end
+
+                if not bestMatch then
+                    bestMatch = candidate
+                end
+            end
+        end
+    end
+
+    return bestMatch
+end
+
+local function findButtonByPrefixList(prefixes, auraIndex, iconTexture)
+    for _, prefix in ipairs(prefixes) do
+        local found = findButtonByIcon(prefix, auraIndex, iconTexture)
+        if found then
+            return found
+        end
+    end
+
+    return nil
+end
+
+local function collectDescendantButtons(parentFrame, out, depth)
+    if not parentFrame or depth > 4 then
+        return
+    end
+
+    local childCount = parentFrame:GetNumChildren() or 0
+    for i = 1, childCount do
+        local child = select(i, parentFrame:GetChildren())
+        if child then
+            if child.GetObjectType and child:GetObjectType() == "Button" then
+                out[#out + 1] = child
+            end
+            collectDescendantButtons(child, out, depth + 1)
+        end
+    end
+end
+
+local function findChildButtonByIcon(parentFrame, auraIndex, iconTexture)
+    if not parentFrame then
+        return nil
+    end
+
+    local buttons = {}
+    collectDescendantButtons(parentFrame, buttons, 0)
+
+    local bestById = nil
+    for _, child in ipairs(buttons) do
+        if child:IsShown() then
+            local childTexture = getButtonIconTexture(child)
+            if childTexture and iconTexture and tostring(childTexture) == tostring(iconTexture) then
+                if child.GetID and child:GetID() == auraIndex then
+                    return child
+                end
+
+                if not bestById then
+                    bestById = child
+                end
+            end
+        end
+    end
+
+    if bestById then
+        return bestById
+    end
+
+    for _, candidate in ipairs(buttons) do
+        if candidate:IsShown() and candidate.GetID and candidate:GetID() == auraIndex then
+            return candidate
+        end
+    end
+
+    return nil
+end
+
+function TickPulse:GetAuraButton(unit, spellType, auraIndex, iconTexture)
     local frameName
 
     if unit == "target" then
@@ -47,7 +182,24 @@ function TickPulse:GetAuraButton(unit, spellType, auraIndex)
     elseif unit == "focus" then
         frameName = ((spellType == "DOT") and "FocusFrameDebuff" or "FocusFrameBuff") .. tostring(auraIndex)
     elseif unit == "player" then
-        frameName = ((spellType == "DOT") and "DebuffButton" or "BuffButton") .. tostring(auraIndex)
+        if spellType == "HOT" then
+            return findButtonByPrefixList({
+                "BuffButton",
+                "BuffFrameBuff",
+                "PlayerBuffButton",
+            }, auraIndex, iconTexture)
+                or findChildButtonByIcon(_G.BuffFrame, auraIndex, iconTexture)
+        end
+
+        return findButtonByPrefixList({
+            "DebuffButton",
+            "DebuffFrameDebuff",
+            "BuffFrameDebuff",
+            "BuffButton",
+            "PlayerDebuffButton",
+        }, auraIndex, iconTexture)
+            or findChildButtonByIcon(_G.DebuffFrame, auraIndex, iconTexture)
+            or findChildButtonByIcon(_G.BuffFrame, auraIndex, iconTexture)
     end
 
     if not frameName then
@@ -265,7 +417,7 @@ function TickPulse:UpdateLayout()
         if tracked.expirationTime and tracked.expirationTime > 0 and tracked.expirationTime <= t then
             self:RemoveTracker(tracked.key)
         else
-            local button = self:GetAuraButton(tracked.unit, tracked.spellType, tracked.auraIndex)
+            local button = self:GetAuraButton(tracked.unit, tracked.spellType, tracked.auraIndex, tracked.icon)
 
             if not button or not button:IsShown() then
                 if tracked.overlay then
@@ -336,12 +488,20 @@ function TickPulse:DebugBindings(unitFilter)
     for _, tracked in pairs(self.active) do
         if not unitFilter or tracked.unit == unitFilter then
             count = count + 1
-            local button = self:GetAuraButton(tracked.unit, tracked.spellType, tracked.auraIndex)
+            local button = self:GetAuraButton(tracked.unit, tracked.spellType, tracked.auraIndex, tracked.icon)
             local buttonName = button and button:GetName() or "(missing)"
             local overlayState = tracked.overlay and "overlay:on" or "overlay:off"
             local spellLabel = tracked.name or ("spell:" .. tostring(tracked.spellId))
 
             print(string.format("%s | unit:%s | index:%s | button:%s | %s", spellLabel, tostring(tracked.unit), tostring(tracked.auraIndex), tostring(buttonName), overlayState))
+
+            if tracked.unit == "player" and not button then
+                local buffByIndex = _G["BuffButton" .. tostring(tracked.auraIndex)] or _G["BuffFrameBuff" .. tostring(tracked.auraIndex)]
+                local debuffByIndex = _G["DebuffButton" .. tostring(tracked.auraIndex)] or _G["DebuffFrameDebuff" .. tostring(tracked.auraIndex)]
+                local buffName = buffByIndex and buffByIndex:GetName() or "nil"
+                local debuffName = debuffByIndex and debuffByIndex:GetName() or "nil"
+                print(string.format("  player lookup hints | Buff idx:%s | Debuff idx:%s", tostring(buffName), tostring(debuffName)))
+            end
         end
     end
 

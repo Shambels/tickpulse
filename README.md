@@ -47,6 +47,7 @@ Optional custom destination:
 - Your `player` unit now tracks matching DoTs/HoTs cast by other players (`trackExternalOnPlayer = true` in `TickPulse.Config`).
 - If a spell ticks at a different cadence due to talents/procs, the addon learns from combat log deltas after first ticks.
 - Rendering is done on Blizzard aura buttons (`target`, `focus`, and `player`) with a cooldown swipe overlay.
+- For `player`, TickPulse targets the default top-right aura buttons first (`BuffButton`/`DebuffButton`) and falls back to player-frame aura button names if needed.
 - If a new overlay frame would need to be created during combat, TickPulse waits until out of combat to attach it.
 
 ## Next steps
