@@ -32,6 +32,7 @@ local seedSpells = {
 
     -- Mage
     { id = 12654, type = "DOT", interval = 2.0 },  -- Ignite
+    { id = 12051, type = "HOT", interval = 2.0 },  -- Evocation
 
     -- Warlock
     { id = 172, type = "DOT", interval = 3.0 },    -- Corruption
@@ -41,6 +42,7 @@ local seedSpells = {
     { id = 18265, type = "DOT", interval = 3.0 },  -- Siphon Life
 
     -- Druid
+    { id = 740, type = "HOT", interval = 2.0 },    -- Tranquility
     { id = 774, type = "HOT", interval = 3.0 },    -- Rejuvenation
     { id = 8936, type = "HOT", interval = 3.0 },   -- Regrowth
     { id = 33763, type = "HOT", interval = 1.0 },  -- Lifebloom

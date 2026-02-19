@@ -666,7 +666,7 @@ function TickPulse:ScanAllUnits()
     end
 end
 
-function TickPulse:OnPeriodicTick(destGUID, spellId, sourceGUID)
+function TickPulse:OnPeriodicTick(destGUID, spellId, sourceGUID, tickEvent)
     local key = makeKey(destGUID, spellId, sourceGUID)
     local tracked = self.active[key]
     if not tracked then
@@ -693,6 +693,7 @@ function TickPulse:OnPeriodicTick(destGUID, spellId, sourceGUID)
     end
 
     tracked.lastTick = t
+    tracked.lastTickEvent = tickEvent
     tracked.cycleStart = t
     tracked.nextTick = t + tracked.interval
 end
@@ -796,9 +797,11 @@ function TickPulse:OnCombatLogEvent()
     end
 
     if eventName == "SPELL_PERIODIC_DAMAGE" and spellInfo.type == "DOT" then
-        self:OnPeriodicTick(destGUID, spellId, sourceGUID)
+        self:OnPeriodicTick(destGUID, spellId, sourceGUID, "DAMAGE")
     elseif eventName == "SPELL_PERIODIC_HEAL" and spellInfo.type == "HOT" then
-        self:OnPeriodicTick(destGUID, spellId, sourceGUID)
+        self:OnPeriodicTick(destGUID, spellId, sourceGUID, "HEAL")
+    elseif eventName == "SPELL_PERIODIC_ENERGIZE" and spellInfo.type == "HOT" then
+        self:OnPeriodicTick(destGUID, spellId, sourceGUID, "ENERGIZE")
     elseif eventName == "SPELL_AURA_REMOVED" then
         local key = makeKey(destGUID, spellId, sourceGUID)
         if self.active[key] then
@@ -828,8 +831,9 @@ function TickPulse:DebugBindings(unitFilter)
             local buttonName = button and button:GetName() or "(missing)"
             local overlayState = tracked.overlay and "overlay:on" or "overlay:off"
             local spellLabel = tracked.name or ("spell:" .. tostring(tracked.spellId))
+            local eventLabel = tracked.lastTickEvent and (" | tick:" .. tostring(tracked.lastTickEvent)) or ""
 
-            print(string.format("%s | unit:%s | index:%s | button:%s | %s", spellLabel, tostring(tracked.unit), tostring(tracked.auraIndex), tostring(buttonName), overlayState))
+            print(string.format("%s | unit:%s | index:%s | button:%s | %s%s", spellLabel, tostring(tracked.unit), tostring(tracked.auraIndex), tostring(buttonName), overlayState, eventLabel))
 
             if tracked.unit == "player" and not button then
                 local buffByIndex = _G["BuffButton" .. tostring(tracked.auraIndex)] or _G["BuffFrameBuff" .. tostring(tracked.auraIndex)]
