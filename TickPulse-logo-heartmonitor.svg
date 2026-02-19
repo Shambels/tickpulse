@@ -1,0 +1,33 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="128" y1="128" x2="896" y2="896" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1F2937"/>
+      <stop offset="1" stop-color="#0B1220"/>
+    </linearGradient>
+    <linearGradient id="pulse" x1="210" y1="560" x2="814" y2="560" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FBBF24"/>
+      <stop offset="1" stop-color="#F59E0B"/>
+    </linearGradient>
+    <filter id="glow" x="120" y="260" width="784" height="520" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="7" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <rect x="64" y="64" width="896" height="896" rx="184" fill="url(#bg)"/>
+  <rect x="64" y="64" width="896" height="896" rx="184" stroke="#334155" stroke-width="8"/>
+
+  <circle cx="512" cy="512" r="300" stroke="#475569" stroke-width="10" opacity="0.45"/>
+  <circle cx="512" cy="512" r="252" stroke="#64748B" stroke-width="6" opacity="0.35" stroke-dasharray="8 18"/>
+
+  <!-- Regular ECG-like pulse with one angle exactly at center (512,512) -->
+  <path d="M210 560H320L370 560L420 470L468 640L512 512L570 428L620 560H814"
+        stroke="url(#pulse)"
+        stroke-width="28"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        filter="url(#glow)"/>
+</svg>

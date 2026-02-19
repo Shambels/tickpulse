@@ -3,6 +3,7 @@
 ## Notes: Visual tick tracker overlay for DoTs and HoTs.
 ## Author: Shambles
 ## Version: 0.1.0
+## X-License: MIT
 
 spells.lua
 core.lua

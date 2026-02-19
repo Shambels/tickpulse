@@ -65,6 +65,10 @@ Optional custom destination:
 - For `player`, TickPulse targets the default top-right aura buttons first (`BuffButton`/`DebuffButton`) and falls back to player-frame aura button names if needed.
 - If a new overlay frame would need to be created during combat, TickPulse waits until out of combat to attach it.
 
+## License
+
+TickPulse is licensed under the MIT License. See [LICENSE](LICENSE).
+
 ## Next steps
 
 - Optionally integrate with unit frame addons via custom anchors.
