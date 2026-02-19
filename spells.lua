@@ -49,6 +49,20 @@ local seedSpells = {
     { id = 1079, type = "DOT", interval = 2.0 },   -- Rip
     { id = 1822, type = "DOT", interval = 3.0 },   -- Rake
     { id = 33745, type = "DOT", interval = 3.0 },  -- Lacerate
+
+    -- First Aid (Bandages)
+    { id = 3275, type = "HOT", interval = 1.0 },   -- Linen Bandage
+    { id = 3276, type = "HOT", interval = 1.0 },   -- Heavy Linen Bandage
+    { id = 3277, type = "HOT", interval = 1.0 },   -- Wool Bandage
+    { id = 3278, type = "HOT", interval = 1.0 },   -- Heavy Wool Bandage
+    { id = 7926, type = "HOT", interval = 1.0 },   -- Silk Bandage
+    { id = 7927, type = "HOT", interval = 1.0 },   -- Heavy Silk Bandage
+    { id = 10838, type = "HOT", interval = 1.0 },  -- Mageweave Bandage
+    { id = 10839, type = "HOT", interval = 1.0 },  -- Heavy Mageweave Bandage
+    { id = 18608, type = "HOT", interval = 1.0 },  -- Runecloth Bandage
+    { id = 18610, type = "HOT", interval = 1.0 },  -- Heavy Runecloth Bandage
+    { id = 27032, type = "HOT", interval = 1.0 },  -- Netherweave Bandage
+    { id = 27033, type = "HOT", interval = 1.0 },  -- Heavy Netherweave Bandage
 }
 
 for _, entry in ipairs(seedSpells) do

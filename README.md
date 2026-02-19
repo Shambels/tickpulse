@@ -57,6 +57,7 @@ Optional custom destination:
 ## Notes
 
 - `spells.lua` now seeds periodic spells across all TBC classes/specs (DoTs + HoTs).
+- First Aid bandages are also seeded as tracked periodic heals.
 - Matching is done by localized spell name (from `GetSpellInfo`) and cached per runtime spell ID, so all ranks are covered.
 - Your `player` unit now tracks matching DoTs/HoTs cast by other players (`trackExternalOnPlayer = true` in `TickPulse.Config`).
 - If a spell ticks at a different cadence due to talents/procs, the addon learns from combat log deltas after first ticks.
