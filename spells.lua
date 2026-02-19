@@ -63,6 +63,12 @@ end
 
 TickPulse.Config = {
     enabled = true,
+    showOnMainUI = true,
+    showOnTargetFrame = true,
+    showOnFocusFrame = true,
+    showNumericTicker = false,
+    showRotatingTicker = true,
+    overlayOpacity = 0.65,
     trackExternalOnPlayer = true,
     monitoredUnits = {
         "target", -- DoTs on target + HoTs if friendly target

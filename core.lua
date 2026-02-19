@@ -225,8 +225,22 @@ function TickPulse:AcquireAuraOverlay(button)
         overlay:SetDrawBling(false)
         overlay:SetDrawEdge(true)
         overlay:SetReverse(true)
+        if overlay.SetHideCountdownNumbers then
+            overlay:SetHideCountdownNumbers(true)
+        end
+        overlay.noCooldownCount = true
         overlay:SetSwipeColor(1, 0.85, 0.1, 0.65)
         overlay:SetFrameLevel(button:GetFrameLevel() + 2)
+
+        if not button.TickPulseValueText then
+            button.TickPulseValueText = button:CreateFontString(nil, "OVERLAY", "NumberFontNormalSmall")
+            button.TickPulseValueText:SetPoint("CENTER", button, "CENTER", 0, 0)
+            button.TickPulseValueText:SetDrawLayer("OVERLAY", 7)
+            button.TickPulseValueText:SetText("")
+            button.TickPulseValueText:Hide()
+        end
+
+        overlay.valueText = button.TickPulseValueText
 
         button.TickPulseOverlay = overlay
     end
@@ -235,12 +249,286 @@ function TickPulse:AcquireAuraOverlay(button)
     return overlay
 end
 
+function TickPulse:GetOverlayOpacity()
+    local value = tonumber(self.Config.overlayOpacity)
+    if not value then
+        value = 0.65
+    end
+
+    if value < 0 then
+        value = 0
+    elseif value > 1 then
+        value = 1
+    end
+
+    self.Config.overlayOpacity = value
+    return value
+end
+
+function TickPulse:GetTickRemaining(tracked, t)
+    if not tracked.interval or tracked.interval <= 0 then
+        return nil
+    end
+
+    local remaining = (tracked.nextTick or 0) - t
+    if remaining > 0 then
+        return remaining
+    end
+
+    if tracked.cycleStart then
+        local elapsed = t - tracked.cycleStart
+        if elapsed >= 0 then
+            local progress = math.fmod(elapsed, tracked.interval)
+            return tracked.interval - progress
+        end
+    end
+
+    return tracked.interval
+end
+
+function TickPulse:FormatTickRemaining(seconds)
+    if not seconds then
+        return ""
+    end
+
+    if seconds >= 10 then
+        return tostring(math.floor(seconds + 0.5))
+    end
+
+    return string.format("%.1f", seconds)
+end
+
+function TickPulse:ApplyOverlayVisuals(tracked, overlay, t)
+    local showRotating = self.Config.showRotatingTicker ~= false
+    local showNumeric = self.Config.showNumericTicker == true
+    local opacity = self:GetOverlayOpacity()
+
+    if overlay.SetDrawSwipe then
+        overlay:SetDrawSwipe(showRotating)
+    end
+
+    if overlay.SetDrawEdge then
+        overlay:SetDrawEdge(showRotating)
+    end
+
+    if overlay.SetSwipeColor then
+        overlay:SetSwipeColor(1, 0.85, 0.1, showRotating and opacity or 0)
+    end
+
+    if overlay.valueText then
+        if showNumeric then
+            local remaining = self:GetTickRemaining(tracked, t)
+            overlay.valueText:SetText(self:FormatTickRemaining(remaining))
+            overlay.valueText:SetTextColor(1, 1, 1, math.max(0.35, opacity))
+            overlay.valueText:Show()
+        else
+            overlay.valueText:SetText("")
+            overlay.valueText:Hide()
+        end
+    end
+end
+
 function TickPulse:HideAllOverlays()
     for _, tracked in pairs(self.active) do
         if tracked.overlay then
             tracked.overlay:Hide()
-            tracked.overlay = nil
+            if tracked.overlay.valueText then
+                tracked.overlay.valueText:SetText("")
+                tracked.overlay.valueText:Hide()
+            end
         end
+    end
+end
+
+function TickPulse:ShouldRenderTickerOnUnit(unit)
+    if unit == "player" then
+        return self.Config.showOnMainUI ~= false
+    end
+
+    if unit == "target" then
+        return self.Config.showOnTargetFrame ~= false
+    end
+
+    if unit == "focus" then
+        return self.Config.showOnFocusFrame ~= false
+    end
+
+    return true
+end
+
+function TickPulse:CreateOptionsPanel()
+    if self.optionsPanel then
+        return
+    end
+
+    if not InterfaceOptions_AddCategory and not InterfaceOptionsFrame_AddCategory and LoadAddOn then
+        pcall(LoadAddOn, "Blizzard_InterfaceOptions")
+    end
+
+    local panel = CreateFrame("Frame", "TickPulseOptionsPanel", UIParent)
+    panel.name = "TickPulse"
+
+    local title = panel:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
+    title:SetPoint("TOPLEFT", 16, -16)
+    title:SetText("TickPulse")
+
+    local subtitle = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+    subtitle:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -8)
+    subtitle:SetText("Ticker visibility and visuals")
+
+    local mainUICheckbox = CreateFrame("CheckButton", "TickPulseOptionsMainUICheckbox", panel, "InterfaceOptionsCheckButtonTemplate")
+    mainUICheckbox:SetPoint("TOPLEFT", subtitle, "BOTTOMLEFT", 0, -20)
+    _G[mainUICheckbox:GetName() .. "Text"]:SetText("Show ticker on main UI (player auras)")
+
+    local targetFrameCheckbox = CreateFrame("CheckButton", "TickPulseOptionsTargetFrameCheckbox", panel, "InterfaceOptionsCheckButtonTemplate")
+    targetFrameCheckbox:SetPoint("TOPLEFT", mainUICheckbox, "BOTTOMLEFT", 0, -12)
+    _G[targetFrameCheckbox:GetName() .. "Text"]:SetText("Show ticker on target frame")
+
+    local focusFrameCheckbox = CreateFrame("CheckButton", "TickPulseOptionsFocusFrameCheckbox", panel, "InterfaceOptionsCheckButtonTemplate")
+    focusFrameCheckbox:SetPoint("TOPLEFT", targetFrameCheckbox, "BOTTOMLEFT", 0, -12)
+    _G[focusFrameCheckbox:GetName() .. "Text"]:SetText("Show ticker on focus frame")
+
+    local numericTickerCheckbox = CreateFrame("CheckButton", "TickPulseOptionsNumericTickerCheckbox", panel, "InterfaceOptionsCheckButtonTemplate")
+    numericTickerCheckbox:SetPoint("TOPLEFT", focusFrameCheckbox, "BOTTOMLEFT", 0, -20)
+    _G[numericTickerCheckbox:GetName() .. "Text"]:SetText("Show numeric values on ticker")
+
+    local rotatingTickerCheckbox = CreateFrame("CheckButton", "TickPulseOptionsRotatingTickerCheckbox", panel, "InterfaceOptionsCheckButtonTemplate")
+    rotatingTickerCheckbox:SetPoint("TOPLEFT", numericTickerCheckbox, "BOTTOMLEFT", 0, -12)
+    _G[rotatingTickerCheckbox:GetName() .. "Text"]:SetText("Show rotating ticker")
+
+    local opacitySlider = CreateFrame("Slider", "TickPulseOptionsOpacitySlider", panel, "OptionsSliderTemplate")
+    opacitySlider:SetPoint("TOPLEFT", rotatingTickerCheckbox, "BOTTOMLEFT", 0, -30)
+    opacitySlider:SetWidth(240)
+    opacitySlider:SetMinMaxValues(0, 100)
+    opacitySlider:SetValueStep(1)
+    opacitySlider:SetObeyStepOnDrag(true)
+    _G[opacitySlider:GetName() .. "Text"]:SetText("Ticker overlay opacity")
+    _G[opacitySlider:GetName() .. "Low"]:SetText("0%")
+    _G[opacitySlider:GetName() .. "High"]:SetText("100%")
+
+    local resetVisualsButton = CreateFrame("Button", "TickPulseOptionsResetVisualsButton", panel, "UIPanelButtonTemplate")
+    resetVisualsButton:SetPoint("TOPLEFT", opacitySlider, "BOTTOMLEFT", 0, -18)
+    resetVisualsButton:SetSize(180, 22)
+    resetVisualsButton:SetText("Reset Visual Defaults")
+
+    panel._isRefreshing = false
+
+    panel.refresh = function()
+        panel._isRefreshing = true
+        mainUICheckbox:SetChecked(self.Config.showOnMainUI ~= false)
+        targetFrameCheckbox:SetChecked(self.Config.showOnTargetFrame ~= false)
+        focusFrameCheckbox:SetChecked(self.Config.showOnFocusFrame ~= false)
+        numericTickerCheckbox:SetChecked(self.Config.showNumericTicker == true)
+        rotatingTickerCheckbox:SetChecked(self.Config.showRotatingTicker ~= false)
+        opacitySlider:SetValue(math.floor((self:GetOverlayOpacity() * 100) + 0.5))
+        panel._isRefreshing = false
+    end
+
+    local function applyOption(configKey, checked)
+        self.Config[configKey] = checked and true or false
+
+        -- Changing a visibility option should not accidentally leave the addon globally disabled.
+        self.Config.enabled = true
+
+        -- Rebind trackers broadly so one toggle doesn't strand overlays on other units.
+        self:ScanAllUnits()
+        self:UpdateLayout()
+    end
+
+    panel:SetScript("OnShow", panel.refresh)
+    panel.refresh()
+
+    mainUICheckbox:SetScript("OnClick", function(button)
+        if panel._isRefreshing then
+            return
+        end
+        applyOption("showOnMainUI", button:GetChecked())
+    end)
+
+    targetFrameCheckbox:SetScript("OnClick", function(button)
+        if panel._isRefreshing then
+            return
+        end
+        applyOption("showOnTargetFrame", button:GetChecked())
+    end)
+
+    focusFrameCheckbox:SetScript("OnClick", function(button)
+        if panel._isRefreshing then
+            return
+        end
+        applyOption("showOnFocusFrame", button:GetChecked())
+    end)
+
+    numericTickerCheckbox:SetScript("OnClick", function(button)
+        if panel._isRefreshing then
+            return
+        end
+
+        self.Config.showNumericTicker = button:GetChecked() and true or false
+        self:UpdateLayout()
+    end)
+
+    rotatingTickerCheckbox:SetScript("OnClick", function(button)
+        if panel._isRefreshing then
+            return
+        end
+
+        self.Config.showRotatingTicker = button:GetChecked() and true or false
+        self:UpdateLayout()
+    end)
+
+    opacitySlider:SetScript("OnValueChanged", function(slider, value)
+        if panel._isRefreshing then
+            return
+        end
+
+        self.Config.overlayOpacity = math.max(0, math.min(1, (value or 0) / 100))
+        self:UpdateLayout()
+    end)
+
+    resetVisualsButton:SetScript("OnClick", function()
+        self.Config.showNumericTicker = false
+        self.Config.showRotatingTicker = true
+        self.Config.overlayOpacity = 0.65
+
+        panel.refresh()
+        self:UpdateLayout()
+    end)
+
+    if InterfaceOptions_AddCategory then
+        InterfaceOptions_AddCategory(panel)
+    elseif InterfaceOptionsFrame_AddCategory then
+        InterfaceOptionsFrame_AddCategory(panel)
+    elseif Settings and Settings.RegisterCanvasLayoutCategory then
+        local category = Settings.RegisterCanvasLayoutCategory(panel, "TickPulse")
+        Settings.RegisterAddOnCategory(category)
+        panel.TickPulseSettingsCategoryID = category:GetID()
+    else
+        print("TickPulse: unable to register options panel on this client.")
+    end
+
+    self.optionsPanel = panel
+end
+
+function TickPulse:OpenOptionsPanel()
+    if not self.optionsPanel then
+        self:CreateOptionsPanel()
+    end
+
+    if not InterfaceOptionsFrame_OpenToCategory and not Settings and LoadAddOn then
+        pcall(LoadAddOn, "Blizzard_InterfaceOptions")
+    end
+
+    if InterfaceOptionsFrame_OpenToCategory and self.optionsPanel then
+        InterfaceOptionsFrame_OpenToCategory(self.optionsPanel)
+        InterfaceOptionsFrame_OpenToCategory(self.optionsPanel)
+    elseif Settings and Settings.OpenToCategory and self.optionsPanel and self.optionsPanel.TickPulseSettingsCategoryID then
+        Settings.OpenToCategory(self.optionsPanel.TickPulseSettingsCategoryID)
+    elseif InterfaceOptionsFrame_OpenToCategory then
+        InterfaceOptionsFrame_OpenToCategory("TickPulse")
+        InterfaceOptionsFrame_OpenToCategory("TickPulse")
+    else
+        print("TickPulse: options UI is not available on this client.")
     end
 end
 
@@ -297,6 +585,10 @@ function TickPulse:RemoveTracker(key)
     end
 
     if tracked.overlay then
+        if tracked.overlay.valueText then
+            tracked.overlay.valueText:SetText("")
+            tracked.overlay.valueText:Hide()
+        end
         tracked.overlay:Hide()
         tracked.overlay = nil
     end
@@ -405,6 +697,31 @@ function TickPulse:OnPeriodicTick(destGUID, spellId, sourceGUID)
     tracked.nextTick = t + tracked.interval
 end
 
+function TickPulse:ResetTrackerCycle(destGUID, spellId, sourceGUID)
+    local key = makeKey(destGUID, spellId, sourceGUID)
+    local tracked = self.active[key]
+    if not tracked then
+        for _, candidate in pairs(self.active) do
+            if candidate.destGUID == destGUID and candidate.spellId == spellId and (candidate.sourceGUID == sourceGUID or candidate.sourceGUID == nil) then
+                tracked = candidate
+                break
+            end
+        end
+        if not tracked then
+            return
+        end
+    end
+
+    local t = now()
+    tracked.cycleStart = t
+    tracked.nextTick = t + (tracked.interval or 0)
+    tracked.lastTick = nil
+
+    if tracked.overlay and self.Config.showRotatingTicker ~= false and tracked.interval and tracked.interval > 0 then
+        tracked.overlay:SetCooldown(tracked.cycleStart, tracked.interval)
+    end
+end
+
 function TickPulse:UpdateLayout()
     if not self.Config.enabled then
         self:HideAllOverlays()
@@ -416,16 +733,31 @@ function TickPulse:UpdateLayout()
 
         if tracked.expirationTime and tracked.expirationTime > 0 and tracked.expirationTime <= t then
             self:RemoveTracker(tracked.key)
+        elseif not self:ShouldRenderTickerOnUnit(tracked.unit) then
+            if tracked.overlay then
+                if tracked.overlay.valueText then
+                    tracked.overlay.valueText:SetText("")
+                    tracked.overlay.valueText:Hide()
+                end
+                tracked.overlay:Hide()
+            end
         else
             local button = self:GetAuraButton(tracked.unit, tracked.spellType, tracked.auraIndex, tracked.icon)
 
             if not button or not button:IsShown() then
                 if tracked.overlay then
+                    if tracked.overlay.valueText then
+                        tracked.overlay.valueText:SetText("")
+                        tracked.overlay.valueText:Hide()
+                    end
                     tracked.overlay:Hide()
-                    tracked.overlay = nil
                 end
             else
                 if tracked.overlay and tracked.overlay:GetParent() ~= button then
+                    if tracked.overlay.valueText then
+                        tracked.overlay.valueText:SetText("")
+                        tracked.overlay.valueText:Hide()
+                    end
                     tracked.overlay:Hide()
                     tracked.overlay = nil
                 end
@@ -433,8 +765,11 @@ function TickPulse:UpdateLayout()
                 local overlay = tracked.overlay or self:AcquireAuraOverlay(button)
                 if overlay then
                     tracked.overlay = overlay
+                    overlay:Show()
 
-                    if tracked.interval and tracked.interval > 0 then
+                    self:ApplyOverlayVisuals(tracked, overlay, t)
+
+                    if self.Config.showRotatingTicker ~= false and tracked.interval and tracked.interval > 0 then
                         overlay:SetCooldown(tracked.cycleStart, tracked.interval)
                     end
                 end
@@ -472,6 +807,7 @@ function TickPulse:OnCombatLogEvent()
             self:ScanUnit("player")
         end
     elseif eventName == "SPELL_AURA_APPLIED" or eventName == "SPELL_AURA_REFRESH" then
+        self:ResetTrackerCycle(destGUID, spellId, sourceGUID)
         -- Pull freshest aura info from units we monitor.
         self:ScanAllUnits()
     end
@@ -523,6 +859,7 @@ end
 
 function TickPulse:HandleEvent(event, ...)
     if event == "PLAYER_LOGIN" then
+        self:CreateOptionsPanel()
         frame:SetScript("OnUpdate", function(_, elapsed) self:OnUpdate(elapsed) end)
         self:ScanAllUnits()
     elseif event == "PLAYER_ENTERING_WORLD" then
@@ -569,6 +906,8 @@ SlashCmdList.TICKPULSE = function(msg)
         TickPulse:ScanAllUnits()
     elseif cmd == "scan" then
         TickPulse:ScanAllUnits()
+    elseif cmd == "options" then
+        TickPulse:OpenOptionsPanel()
     elseif cmd == "debug" then
         if arg == "" then
             TickPulse:DebugBindings()
@@ -578,6 +917,6 @@ SlashCmdList.TICKPULSE = function(msg)
             print("TickPulse debug usage: /tpulse debug [player|target|focus]")
         end
     else
-        print("TickPulse commands: /tpulse show | hide | scan | debug [player|target|focus]")
+        print("TickPulse commands: /tpulse show | hide | scan | options | debug [player|target|focus]")
     end
 end

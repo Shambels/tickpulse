@@ -37,8 +37,22 @@ Optional custom destination:
 - `/tpulse show`
 - `/tpulse hide`
 - `/tpulse scan`
+- `/tpulse options`
 - `/tpulse debug`
 - `/tpulse debug player|target|focus`
+
+## Options
+
+- Open via `/tickpulse options` (or `/tpulse options`).
+- Also available in the WoW Interface Options menu under AddOns -> TickPulse.
+- Current toggles:
+   - Show ticker on main UI (player auras)
+   - Show ticker on target frame
+   - Show ticker on focus frame
+   - Show numeric values on ticker
+   - Show rotating ticker
+   - Overlay opacity slider (0% to 100%)
+   - Reset Visual Defaults button (numeric off, rotating on, opacity 65%)
 
 ## Notes
 
