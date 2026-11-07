@@ -1,5 +1,5 @@
 param(
-  [string]$Destination = "C:\Program Files (x86)\World of Warcraft\_anniversary_\Interface\AddOns\TickPulse"
+  [string]$Destination = "C:\Program Files (x86)\World of Warcraft\_forever_\Interface\AddOns\TickPulse"
 )
 
 $ErrorActionPreference = "Stop"

@@ -1,8 +1,10 @@
-## Interface: 20504
+## Interface: 16001
 ## Title: TickPulse
 ## Notes: Visual tick tracker overlay for DoTs and HoTs.
 ## Author: Shambles
-## Version: 0.1.0
+## Version: 0.2.0
+## Category: Combat
+## SavedVariables: TickPulseDB
 ## X-License: MIT
 
 spells.lua
