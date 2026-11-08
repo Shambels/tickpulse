@@ -9,3 +9,4 @@
 
 spells.lua
 core.lua
+castbar.lua

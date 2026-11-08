@@ -10,10 +10,7 @@ This branch targets the **WoW Forever** client (`## Interface: 16001`). The orig
 ## Install
 
 1. Create a folder named `TickPulse` in your WoW Forever addons directory.
-2. Copy these files into that folder:
-   - `TickPulse.toc`
-   - `spells.lua`
-   - `core.lua`
+2. Copy `TickPulse.toc` and every `.lua` file into that folder (or link the repository folder, see below).
 3. Launch or reload the game (`/reload`).
 
 Typical path:
@@ -56,6 +53,12 @@ Addons cannot put real auras on you, so `/tpulse test` (run out of combat) fakes
 
 `/tpulse debug test` lists the test trackers and which button each one is bound to (`(missing)` means the real buff icon could not be matched). `/tpulse test off` removes everything.
 
+## Cast bar tick marks
+
+While you channel a spell, TickPulse draws a mark on your cast bar for each tick. Marks for ticks that already happened are dimmed, so you can stop the channel right after a tick instead of wasting part of one. Your own cast info stays readable in combat, so this works fully on Forever.
+
+It covers the aura-tracked channels (Mind Flay, Drain Life, Drain Soul, Drain Mana, Evocation, Tranquility, First Aid bandages) plus Arcane Missiles, Blizzard, Rain of Fire, Hellfire, Health Funnel, Hurricane and Volley. Pushback moves the end of the channel and the marks are redrawn to match.
+
 ## Options
 
 - Open with `/tickpulse options` (or `/tpulse options`), or go to Options -> AddOns -> TickPulse.
@@ -67,6 +70,7 @@ Addons cannot put real auras on you, so `/tpulse test` (run out of combat) fakes
    - Track other players' HoTs/DoTs on you
    - Show rotating ticker
    - Show numeric values on ticker
+   - Show tick marks on the cast bar
    - Overlay opacity slider (0% to 100%)
    - Reset visual defaults (numeric off, rotating on, opacity 65%)
 

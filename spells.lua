@@ -75,6 +75,19 @@ local seedSpells = {
     { id = 33745, type = "DOT", interval = 3.0 },  -- Lacerate
 }
 
+-- Channelled spells that tick but leave no trackable aura on a monitored unit.
+-- Used only for the cast bar tick marks; aura-tracked channels (Mind Flay,
+-- Drain Life, Evocation, Tranquility, First Aid...) come from the list above.
+local seedChannels = {
+    { id = 5143, name = "Arcane Missiles", interval = 1.0 },
+    { id = 10, name = "Blizzard", interval = 1.0 },
+    { id = 5740, name = "Rain of Fire", interval = 2.0 },
+    { id = 1949, name = "Hellfire", interval = 1.0 },
+    { id = 755, name = "Health Funnel", interval = 1.0 },
+    { id = 16914, name = "Hurricane", interval = 1.0 },
+    { id = 1510, name = "Volley", interval = 1.0 },
+}
+
 local function resolveSpellName(spellId)
     if C_Spell and C_Spell.GetSpellName then
         local ok, name = pcall(C_Spell.GetSpellName, spellId)
@@ -126,6 +139,14 @@ function TickPulse:BuildSpellIndex()
             self.SpellList[#self.SpellList + 1] = info
         end
     end
+
+    self.ChannelsByName = {}
+    for _, entry in ipairs(seedChannels) do
+        local info = { seedId = entry.id, interval = entry.interval }
+        info.name = resolveSpellName(entry.id) or entry.name
+        self.ChannelsByName[info.name] = info
+        self.ChannelsByName[entry.name] = self.ChannelsByName[entry.name] or info
+    end
 end
 
 TickPulse:BuildSpellIndex()
@@ -139,6 +160,7 @@ TickPulse.Config = {
     showRotatingTicker = true,
     overlayOpacity = 0.65,
     trackExternalOnPlayer = true,
+    showChannelTicks = true,
     monitoredUnits = {
         "target", -- DoTs on target + HoTs if friendly target
         "player", -- HoTs/DoTs on self (including other-player casts when enabled)
@@ -155,4 +177,5 @@ TickPulse.PersistedKeys = {
     "showRotatingTicker",
     "overlayOpacity",
     "trackExternalOnPlayer",
+    "showChannelTicks",
 }

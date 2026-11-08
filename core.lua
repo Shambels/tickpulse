@@ -993,6 +993,7 @@ function TickPulse:CreateOptionsPanel()
     addHeader("Visuals")
     addCheckbox("showRotatingTicker", "Show rotating ticker", "Draw a swipe that completes once per tick.")
     addCheckbox("showNumericTicker", "Show numeric values on ticker", "Show seconds until the next tick.")
+    addCheckbox("showChannelTicks", "Show tick marks on the cast bar", "While channelling (Mind Flay, Drain Life, Evocation, bandages...), mark each tick on your cast bar and dim the ones that already happened.")
 
     local opacitySetting = Settings.RegisterProxySetting(category, "TICKPULSE_OVERLAY_OPACITY",
         varTypes.Number or "number", "Ticker overlay opacity", DEFAULTS.overlayOpacity * 100,
