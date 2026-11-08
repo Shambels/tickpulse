@@ -7,8 +7,8 @@
 ## IconTexture: Interface\AddOns\TickPulse\media\TickPulse-icon
 ## SavedVariables: TickPulseDB
 ## X-License: MIT
-# Add these once the projects exist, so tagged releases upload automatically:
-# ## X-Curse-Project-ID: <CurseForge project ID>
+## X-Curse-Project-ID: 1466119
+# Add this once the Wago project exists, so tagged releases upload there too:
 # ## X-Wago-ID: <Wago project ID>
 
 spells.lua
