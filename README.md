@@ -91,7 +91,7 @@ These come from the client's addon restrictions and need in-game confirmation:
 - While auras are secret, matching an overlay to the right Blizzard icon depends on the icon's texture or aura instance ID being readable. If Blizzard hides those too, overlays for spells applied *during* combat may not appear until combat ends. Overlays bound before combat stay attached.
 - While auras are secret, TickPulse cannot see auras that other players apply to you, and it cannot tell whether your cast was resisted.
 - For projectiles (Fireball, Pyroblast, Serpent Sting, Viper Sting) the aura lands after the cast, so their in-combat schedule is only started from aura data.
-- Changing target in combat drops target trackers, because the new target's auras cannot be read until restrictions lift.
+- When you switch target or focus, TickPulse parks the old unit's trackers by GUID and restores them when you switch back (kept until they expire, or 2 minutes if the duration is unknown). If the client hides the unit's GUID, the trackers are dropped instead. The new target's own auras still can't be read until restrictions lift.
 - Talents or effects that change tick speed are not learned anymore: there is no combat log to learn from. Adjust `interval` in `spells.lua` if a spell ticks differently.
 
 ## Tracked spells

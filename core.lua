@@ -761,14 +761,109 @@ function TickPulse:OnPlayerSpellCast(spellId)
     end
 end
 
+--------------------------------------------------------------------------------
+-- Per-target memory
+--------------------------------------------------------------------------------
+
+-- Trackers of units you switch away from are parked by GUID and restored when you
+-- switch back, so DoTs applied in combat survive target swaps. This needs the
+-- unit's GUID to be readable; otherwise the trackers are dropped as before.
+local PARK_TTL = 120   -- seconds a parked tracker without a known expiration is kept
+
+TickPulse.unitGUIDs = TickPulse.unitGUIDs or {}
+TickPulse.parked = TickPulse.parked or {}
+
+function TickPulse:RememberUnitGUIDs()
+    for _, unit in ipairs(self.Config.monitoredUnits) do
+        if unit ~= "player" then
+            self.unitGUIDs[unit] = readable(UnitGUID(unit))
+        end
+    end
+end
+
+function TickPulse:PurgeParked(t)
+    for guid, entry in pairs(self.parked) do
+        local keep = {}
+        for _, tracked in ipairs(entry.trackers) do
+            local expired
+            if tracked.expirationTime then
+                expired = tracked.expirationTime <= t
+            else
+                expired = (t - entry.savedAt) > PARK_TTL
+            end
+            if not expired then
+                keep[#keep + 1] = tracked
+            end
+        end
+
+        if #keep > 0 then
+            entry.trackers = keep
+        else
+            self.parked[guid] = nil
+        end
+    end
+end
+
+function TickPulse:ParkTrackers(unit, guid)
+    local t = now()
+    self:PurgeParked(t)
+
+    local bucket = {}
+    for key, tracked in pairs(self.active) do
+        if tracked.unit == unit then
+            hideOverlay(tracked.overlay)
+            tracked.overlay = nil
+            tracked.button = nil
+            bucket[#bucket + 1] = tracked
+            self.active[key] = nil
+        end
+    end
+
+    if #bucket > 0 then
+        self.parked[guid] = { savedAt = t, trackers = bucket }
+    end
+end
+
+function TickPulse:RestoreTrackers(unit, guid)
+    local t = now()
+    self:PurgeParked(t)
+
+    local entry = self.parked[guid]
+    if not entry then
+        return
+    end
+    self.parked[guid] = nil
+
+    for _, tracked in ipairs(entry.trackers) do
+        local key = makeKey(unit, tracked.name, tracked.sourceKey)
+        if not self.active[key] then
+            tracked.unit = unit
+            tracked.key = key
+            tracked.lastSeen = t
+            self.active[key] = tracked
+        end
+    end
+end
+
 function TickPulse:OnUnitChanged(unit)
     self:InvalidateButtonCache()
-    if self:AurasAreSecret() then
-        -- The new unit's auras cannot be read; drop trackers that belonged to the old one.
-        self:RemoveTrackersForUnit(unit)
+
+    local oldGUID = self.unitGUIDs[unit]
+    local newGUID = readable(UnitGUID(unit))
+    self.unitGUIDs[unit] = newGUID
+
+    if oldGUID then
+        self:ParkTrackers(unit, oldGUID)
     else
-        self:ScanUnit(unit)
+        self:RemoveTrackersForUnit(unit)
     end
+
+    if newGUID then
+        self:RestoreTrackers(unit, newGUID)
+    end
+
+    -- Readable aura data overrides whatever was restored.
+    self:ScanUnit(unit)
 end
 
 function TickPulse:UpdateLayout()
@@ -1129,7 +1224,11 @@ function TickPulse:HandleEvent(event, ...)
         self:CreateOptionsPanel()
         frame:SetScript("OnUpdate", function(_, elapsed) self:OnUpdate(elapsed) end)
         self:ScanAllUnits()
-    elseif event == "PLAYER_ENTERING_WORLD" or event == "PLAYER_REGEN_ENABLED"
+    elseif event == "PLAYER_ENTERING_WORLD" then
+        wipe(self.parked)
+        self:RememberUnitGUIDs()
+        self:ScanAllUnits()
+    elseif event == "PLAYER_REGEN_ENABLED"
         or event == "ENCOUNTER_END" or event == "ADDON_RESTRICTION_STATE_CHANGED" then
         -- Restrictions may have lifted; re-read authoritative aura data.
         self:ScanAllUnits()
