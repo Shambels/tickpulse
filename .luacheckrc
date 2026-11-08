@@ -35,6 +35,7 @@ read_globals = {
     "C_Spell",
     "C_Timer",
     "C_UnitAuras",
+    "C_XMLUtil",
 
     -- Functions
     "CreateFrame",
@@ -51,6 +52,7 @@ read_globals = {
 
     -- Frames, mixins and constants
     "UIParent",
+    "GameTooltip",
     "ColorPickerFrame",
     "MinimalSliderWithSteppersMixin",
     "SOUNDKIT",

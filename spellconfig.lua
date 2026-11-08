@@ -56,6 +56,10 @@ function TickPulse:RefreshSpells()
 
     self:ScanAllUnits()
     self:UpdateLayout()
+
+    if self.spellTablePage and self.spellTablePage:IsShown() then
+        self:RefreshSpellTable()
+    end
 end
 
 -- Accepts a spell ID or a (case-insensitive) spell name from the list.
@@ -163,7 +167,7 @@ function TickPulse:HandleSpellCommand(cmd, arg)
             self = rest:find("self") and true or false,
         }
         self:RefreshSpells()
-        print("TickPulse: added " .. describe(self.Spells[id]) .. ". It appears in Settings after /reload.")
+        print("TickPulse: added " .. describe(self.Spells[id]) .. ".")
         return true
     end
 
@@ -183,35 +187,185 @@ function TickPulse:HandleSpellCommand(cmd, arg)
     return false
 end
 
--- "Spells" page under TickPulse in the Settings panel.
-function TickPulse:CreateSpellSettings(category)
-    if not (Settings.RegisterVerticalLayoutSubcategory and Settings.RegisterProxySetting) then
+--------------------------------------------------------------------------------
+-- "Spells" page: a table with Name | Category | Timer | Enabled columns
+--------------------------------------------------------------------------------
+
+local ROW_HEIGHT = 24
+local COLUMNS = {
+    { key = "name", title = "Name", x = 8, width = 250 },
+    { key = "category", title = "Category", x = 266, width = 90 },
+    { key = "timer", title = "Timer", x = 364, width = 110 },
+    { key = "enabled", title = "Enabled", x = 482, width = 70 },
+}
+local CATEGORY_COLORS = {
+    DOT = { 1, 0.45, 0.35 },
+    HOT = { 0.4, 1, 0.5 },
+}
+
+local function addColumnText(parent, column, template)
+    local text = parent:CreateFontString(nil, "ARTWORK", template)
+    text:SetPoint("LEFT", parent, "LEFT", column.x, 0)
+    text:SetWidth(column.width)
+    text:SetJustifyH("LEFT")
+    text:SetWordWrap(false)
+    return text
+end
+
+local function createRow(content, index)
+    local row = CreateFrame("Frame", nil, content)
+    row:SetHeight(ROW_HEIGHT)
+    row:SetPoint("TOPLEFT", content, "TOPLEFT", 0, -(index - 1) * ROW_HEIGHT)
+    row:SetPoint("RIGHT", content, "RIGHT", 0, 0)
+
+    -- Zebra striping keeps long lists readable.
+    if index % 2 == 0 then
+        local stripe = row:CreateTexture(nil, "BACKGROUND")
+        stripe:SetAllPoints()
+        stripe:SetColorTexture(1, 1, 1, 0.04)
+    end
+
+    row.name = addColumnText(row, COLUMNS[1], "GameFontHighlight")
+    row.category = addColumnText(row, COLUMNS[2], "GameFontHighlight")
+    row.timer = addColumnText(row, COLUMNS[3], "GameFontHighlight")
+
+    local check = CreateFrame("CheckButton", nil, row, "UICheckButtonTemplate")
+    check:SetSize(24, 24)
+    check:SetPoint("LEFT", row, "LEFT", COLUMNS[4].x + 8, 0)
+    row.check = check
+
+    -- Hovering the row explains the timer and how to change it.
+    row:EnableMouse(true)
+    row:SetScript("OnEnter", function(self)
+        local info = self.info
+        if not info then
+            return
+        end
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText(info.name)
+        GameTooltip:AddLine(string.format("Spell ID %d", info.seedId), 0.8, 0.8, 0.8)
+        GameTooltip:AddLine(string.format("Ticks every %.1f s", info.interval), 1, 1, 1)
+        if info.defaultInterval and info.interval ~= info.defaultInterval then
+            GameTooltip:AddLine(string.format("Default %.1f s (/tpulse interval %d reset)", info.defaultInterval, info.seedId), 1, 0.82, 0)
+        end
+        GameTooltip:AddLine(string.format("Change it with /tpulse interval %d <seconds>", info.seedId), 0.6, 0.8, 1, true)
+        GameTooltip:Show()
+    end)
+    row:SetScript("OnLeave", function() GameTooltip:Hide() end)
+
+    return row
+end
+
+function TickPulse:RefreshSpellTable()
+    local page = self.spellTablePage
+    if not page then
         return
     end
 
-    local subcategory, layout = Settings.RegisterVerticalLayoutSubcategory(category, "Spells")
-    local varTypes = Settings.VarType or {}
+    local spells = self:GetRelevantSpells()
+    local content = page.content
 
-    if layout and CreateSettingsListSectionHeaderInitializer then
-        layout:AddInitializer(CreateSettingsListSectionHeaderInitializer("Tracked spells for your class"))
-    end
+    for index, info in ipairs(spells) do
+        local row = page.rows[index] or createRow(content, index)
+        page.rows[index] = row
+        row.info = info
 
-    for _, info in ipairs(self:GetRelevantSpells()) do
+        local color = CATEGORY_COLORS[info.type] or { 1, 1, 1 }
+        row.name:SetText(info.name .. (info.custom and " |cff999999(custom)|r" or ""))
+        row.category:SetText(info.type == "HOT" and "HoT" or "DoT")
+        row.category:SetTextColor(color[1], color[2], color[3])
+
+        local timer = string.format("%.1f s", info.interval)
+        if info.defaultInterval and info.interval ~= info.defaultInterval then
+            row.timer:SetText(timer .. " |cff999999*|r")
+            row.timer:SetTextColor(1, 0.82, 0)
+        else
+            row.timer:SetText(timer)
+            row.timer:SetTextColor(1, 1, 1)
+        end
+
         local spellId = info.seedId
-        local label = string.format("%s (%s, every %.1fs)", info.name, info.type, info.interval)
-        local setting = Settings.RegisterProxySetting(subcategory, "TICKPULSE_SPELL_" .. spellId,
-            varTypes.Boolean or "boolean", label, true,
-            function()
-                local current = self.Spells[spellId]
-                return not (current and current.disabled)
-            end,
-            function(value) self:SetSpellEnabled(spellId, value and true or false) end)
-        Settings.CreateCheckbox(subcategory, setting,
-            "Track this spell. Change its tick interval with /tpulse interval " .. spellId .. " <seconds>.")
+        row.check:SetChecked(not info.disabled)
+        row.check:SetScript("OnClick", function(button)
+            self:SetSpellEnabled(spellId, button:GetChecked() and true or false)
+        end)
+
+        local alpha = info.disabled and 0.5 or 1
+        row.name:SetAlpha(alpha)
+        row.category:SetAlpha(alpha)
+        row.timer:SetAlpha(alpha)
+        row:Show()
     end
 
-    if layout and CreateSettingsListSectionHeaderInitializer then
-        layout:AddInitializer(CreateSettingsListSectionHeaderInitializer(
-            "More spells: /tpulse add <spellID> <seconds> [dot|hot] [self]"))
+    for index = #spells + 1, #page.rows do
+        page.rows[index]:Hide()
+        page.rows[index].info = nil
     end
+
+    content:SetHeight(math.max(1, #spells * ROW_HEIGHT))
+    page.empty:SetShown(#spells == 0)
+end
+
+function TickPulse:CreateSpellSettings(category)
+    if not Settings.RegisterCanvasLayoutSubcategory then
+        return
+    end
+
+    local page = CreateFrame("Frame", "TickPulseSpellSettingsPage")
+    page.rows = {}
+
+    local title = page:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
+    title:SetPoint("TOPLEFT", page, "TOPLEFT", 16, -16)
+    title:SetText("Spells")
+
+    local subtitle = page:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+    subtitle:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -6)
+    subtitle:SetText("Tracked spells for your class. Untick a spell to stop tracking it.")
+
+    -- Column headers
+    local header = CreateFrame("Frame", nil, page)
+    header:SetHeight(20)
+    header:SetPoint("TOPLEFT", subtitle, "BOTTOMLEFT", -8, -14)
+    header:SetPoint("RIGHT", page, "RIGHT", -36, 0)
+    for _, column in ipairs(COLUMNS) do
+        addColumnText(header, column, "GameFontNormal"):SetText(column.title)
+    end
+
+    local divider = header:CreateTexture(nil, "ARTWORK")
+    divider:SetColorTexture(1, 1, 1, 0.2)
+    divider:SetHeight(1)
+    divider:SetPoint("TOPLEFT", header, "BOTTOMLEFT", 0, -2)
+    divider:SetPoint("TOPRIGHT", header, "BOTTOMRIGHT", 0, -2)
+
+    local footer = page:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+    footer:SetPoint("BOTTOMLEFT", page, "BOTTOMLEFT", 16, 14)
+    footer:SetPoint("RIGHT", page, "RIGHT", -16, 0)
+    footer:SetJustifyH("LEFT")
+    footer:SetText("Change a timer: /tpulse interval <name> <seconds>   Add a spell: /tpulse add <spellID> <seconds> [dot|hot] [self]")
+
+    -- Scrollable rows
+    local template = (C_XMLUtil and C_XMLUtil.GetTemplateInfo and C_XMLUtil.GetTemplateInfo("ScrollFrameTemplate"))
+        and "ScrollFrameTemplate" or "UIPanelScrollFrameTemplate"
+    local scroll = CreateFrame("ScrollFrame", nil, page, template)
+    scroll:SetPoint("TOPLEFT", divider, "BOTTOMLEFT", 0, -4)
+    scroll:SetPoint("BOTTOMRIGHT", page, "BOTTOMRIGHT", -36, 36)
+
+    local content = CreateFrame("Frame", nil, scroll)
+    content:SetSize(COLUMNS[4].x + COLUMNS[4].width, 1)
+    scroll:SetScrollChild(content)
+    scroll:SetScript("OnSizeChanged", function(_, width)
+        content:SetWidth(width)
+    end)
+    page.content = content
+
+    local empty = content:CreateFontString(nil, "ARTWORK", "GameFontDisable")
+    empty:SetPoint("TOPLEFT", content, "TOPLEFT", 8, -8)
+    empty:SetText("No tracked spells for your class yet. Add one with /tpulse add.")
+    page.empty = empty
+
+    -- Rebuild on show so custom spells and timer changes appear without /reload.
+    page:SetScript("OnShow", function() self:RefreshSpellTable() end)
+
+    self.spellTablePage = page
+    Settings.RegisterCanvasLayoutSubcategory(category, page, "Spells")
 end

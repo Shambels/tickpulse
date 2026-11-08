@@ -112,14 +112,14 @@ These come from the client's addon restrictions and need in-game confirmation:
 
 ## Per-spell settings and custom spells
 
-- Options -> AddOns -> TickPulse -> **Spells** lists your class's tracked spells (plus First Aid and your custom spells) with a checkbox to turn each one on or off.
+- Options -> AddOns -> TickPulse -> **Spells** shows a table of your class's tracked spells (plus First Aid and your custom spells) with columns for **Name**, **Category** (DoT/HoT), **Timer** (seconds between ticks) and an **Enabled** checkbox. Overridden timers are shown in yellow with a `*`. Hover a row for its spell ID and default timer.
 - Commands:
    - `/tpulse spells`: list your class's spells, their tick interval and whether they are on.
    - `/tpulse spell <spellID|name> on|off`: turn a spell on or off.
    - `/tpulse interval <spellID|name> <seconds|reset>`: override a spell's tick interval, for example after a talent changes it.
    - `/tpulse add <spellID> <seconds> [dot|hot] [self]`: track a spell that isn't in the list, such as one of Forever's new abilities. `self` means the aura lands on you even with a target selected.
    - `/tpulse remove <spellID>`: forget a custom spell.
-- Settings are stored per spell ID in `TickPulseDB` (`spellOverrides`, `customSpells`), so they apply to every rank of the spell. A newly added custom spell is tracked immediately and shows up in the Spells page after `/reload`.
+- Settings are stored per spell ID in `TickPulseDB` (`spellOverrides`, `customSpells`), so they apply to every rank of the spell. A newly added custom spell is tracked immediately and the Spells table updates the next time it is opened.
 
 ## Unit frame addons
 
