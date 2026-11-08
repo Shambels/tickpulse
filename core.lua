@@ -293,6 +293,11 @@ end
 function TickPulse:FindAuraButton(tracked, claimed)
     claimed = claimed or {}
 
+    -- Test-mode trackers draw on TickPulse's own icons.
+    if tracked.fixedButton then
+        return isShown(tracked.fixedButton) and tracked.fixedButton or nil
+    end
+
     -- Keep an existing binding while it still looks right. When Blizzard has drawn the
     -- icon from secret aura data we cannot verify it, so the binding stays sticky.
     local bound = tracked.button
@@ -312,7 +317,7 @@ function TickPulse:FindAuraButton(tracked, claimed)
         end
     end
 
-    local candidates = self:GetCandidateButtons(tracked.unit, tracked.spellType)
+    local candidates = self:GetCandidateButtons(tracked.buttonUnit or tracked.unit, tracked.spellType)
     local iconMatch
     for _, button in ipairs(candidates) do
         if not claimed[button] and isShown(button) then
@@ -695,7 +700,7 @@ function TickPulse:UpdateLayout()
     for key, tracked in pairs(self.active) do
         if tracked.expirationTime and tracked.expirationTime <= t then
             self:RemoveTracker(key)
-        elseif not self:ShouldRenderTickerOnUnit(tracked.unit) then
+        elseif not self:ShouldRenderTickerOnUnit(tracked.buttonUnit or tracked.unit) then
             hideOverlay(tracked.overlay)
         else
             local button = self:FindAuraButton(tracked, claimed)
@@ -705,7 +710,7 @@ function TickPulse:UpdateLayout()
                 tracked.button = nil
 
                 local lastConfirmed = tracked.lastSeen or tracked.createdAt
-                if not tracked.expirationTime and (t - lastConfirmed) > GRACE_WITHOUT_BUTTON then
+                if not tracked.isTest and not tracked.expirationTime and (t - lastConfirmed) > GRACE_WITHOUT_BUTTON then
                     self:RemoveTracker(key)
                 end
             else
@@ -847,6 +852,135 @@ function TickPulse:OpenOptionsPanel()
 end
 
 --------------------------------------------------------------------------------
+-- Test mode (/tpulse test)
+--------------------------------------------------------------------------------
+
+local TEST_SOURCE = "tickpulse-test"
+local TEST_ICONS = {
+    { label = "DoT", spellType = "DOT", interval = 3.0, spellId = 589, fallback = "Interface\\Icons\\Spell_Shadow_ShadowWordPain" },
+    { label = "HoT", spellType = "HOT", interval = 2.0, spellId = 139, fallback = "Interface\\Icons\\Spell_Holy_Renew" },
+}
+
+function TickPulse:CreateTestFrame()
+    if self.testFrame then
+        return self.testFrame
+    end
+
+    local testFrame = CreateFrame("Frame", "TickPulseTestFrame", UIParent)
+    testFrame:SetSize(120, 70)
+    testFrame:SetPoint("CENTER", UIParent, "CENTER", 0, 180)
+    testFrame:SetMovable(true)
+    testFrame:SetClampedToScreen(true)
+    testFrame:EnableMouse(true)
+    testFrame:RegisterForDrag("LeftButton")
+    testFrame:SetScript("OnDragStart", testFrame.StartMoving)
+    testFrame:SetScript("OnDragStop", testFrame.StopMovingOrSizing)
+
+    local background = testFrame:CreateTexture(nil, "BACKGROUND")
+    background:SetAllPoints()
+    background:SetColorTexture(0, 0, 0, 0.5)
+
+    local title = testFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    title:SetPoint("TOP", testFrame, "TOP", 0, -4)
+    title:SetText("TickPulse test")
+
+    testFrame.icons = {}
+    for i, spec in ipairs(TEST_ICONS) do
+        local button = CreateFrame("Button", "TickPulseTest" .. spec.label, testFrame)
+        button:SetSize(32, 32)
+        button:SetPoint("TOPLEFT", testFrame, "TOPLEFT", 16 + (i - 1) * 56, -20)
+
+        local icon = button:CreateTexture(nil, "ARTWORK")
+        icon:SetAllPoints()
+        icon:SetTexture(getSpellTexture(spec.spellId) or spec.fallback)
+        button.Icon = icon
+
+        local caption = button:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        caption:SetPoint("TOP", button, "BOTTOM", 0, -2)
+        caption:SetText(string.format("%s %.0fs", spec.label, spec.interval))
+
+        testFrame.icons[i] = button
+    end
+
+    self.testFrame = testFrame
+    return testFrame
+end
+
+-- Adds a fake tick schedule to the first buff you have, to test matching against
+-- the real Blizzard buff frame. Returns the buff name, or nil with a reason.
+function TickPulse:AddTestTrackerOnRealBuff(t)
+    if self:AurasAreSecret() then
+        return nil, "aura data is secret right now (leave combat and try again)"
+    end
+
+    for i = 1, 40 do
+        local aura = readAuraByIndex("player", i, "HELPFUL")
+        if aura == nil then
+            break
+        end
+        if aura and aura.icon and aura.name then
+            local tracked = self:GetOrCreateTracker("test", aura.name, TEST_SOURCE,
+                { type = "HOT", interval = 3.0 }, aura.spellId)
+            tracked.isTest = true
+            tracked.buttonUnit = "player"
+            tracked.icon = aura.icon
+            tracked.auraInstanceID = aura.auraInstanceID
+            tracked.anchor = t
+            return aura.name
+        end
+    end
+
+    return nil, "you have no readable buffs (eat food or cast a self-buff, then rerun)"
+end
+
+function TickPulse:StartTest()
+    if InCombatLockdown() then
+        print("TickPulse: start test mode out of combat (overlays can't be created in combat).")
+        return
+    end
+
+    self:StopTest(true)
+    self.Config.enabled = true
+
+    local t = now()
+    local testFrame = self:CreateTestFrame()
+    testFrame:Show()
+
+    for i, spec in ipairs(TEST_ICONS) do
+        local tracked = self:GetOrCreateTracker("test", "Test " .. spec.label, TEST_SOURCE,
+            { type = spec.spellType, interval = spec.interval }, nil)
+        tracked.isTest = true
+        tracked.fixedButton = testFrame.icons[i]
+        tracked.anchor = t
+    end
+
+    local buffName, reason = self:AddTestTrackerOnRealBuff(t)
+    if buffName then
+        print("TickPulse test: test icons shown, and a fake 3s tick added to your buff \"" .. buffName .. "\". /tpulse test off to stop.")
+    else
+        print("TickPulse test: test icons shown. No real-buff test: " .. reason .. ". /tpulse test off to stop.")
+    end
+
+    self:UpdateLayout()
+end
+
+function TickPulse:StopTest(silent)
+    for key, tracked in pairs(self.active) do
+        if tracked.isTest then
+            self:RemoveTracker(key)
+        end
+    end
+
+    if self.testFrame then
+        self.testFrame:Hide()
+    end
+
+    if not silent then
+        print("TickPulse test mode off.")
+    end
+end
+
+--------------------------------------------------------------------------------
 -- Debug
 --------------------------------------------------------------------------------
 
@@ -961,12 +1095,18 @@ SlashCmdList.TICKPULSE = function(msg)
     elseif cmd == "debug" then
         if arg == "" then
             TickPulse:DebugBindings()
-        elseif arg == "player" or arg == "target" or arg == "focus" then
+        elseif arg == "player" or arg == "target" or arg == "focus" or arg == "test" then
             TickPulse:DebugBindings(arg)
         else
-            print("TickPulse debug usage: /tpulse debug [player|target|focus]")
+            print("TickPulse debug usage: /tpulse debug [player|target|focus|test]")
+        end
+    elseif cmd == "test" then
+        if arg == "off" or arg == "stop" then
+            TickPulse:StopTest()
+        else
+            TickPulse:StartTest()
         end
     else
-        print("TickPulse commands: /tpulse show | hide | scan | options | debug [player|target|focus]")
+        print("TickPulse commands: /tpulse show | hide | scan | options | test [off] | debug [player|target|focus|test]")
     end
 end

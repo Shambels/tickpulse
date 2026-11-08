@@ -43,7 +43,18 @@ Optional custom destination:
 - `/tpulse debug`
 - `/tpulse debug player|target|focus`
 
+- `/tpulse test` / `/tpulse test off`
+
 `/tpulse debug` also prints the client interface version and whether aura data is currently readable or secret.
+
+## Test mode
+
+Addons cannot put real auras on you, so `/tpulse test` (run out of combat) fakes them:
+
+- A small draggable "TickPulse test" frame shows a fake DoT icon (3s ticks) and a fake HoT icon (2s ticks). Use it to check the swipe, the numbers, opacity and the Settings toggles.
+- If you have any buff (food, a class self-buff), a fake 3s tick schedule is attached to its icon on the real buff frame. This tests matching against Blizzard's buff buttons. It follows the "Show ticker on player auras" toggle.
+
+`/tpulse debug test` lists the test trackers and which button each one is bound to (`(missing)` means the real buff icon could not be matched). `/tpulse test off` removes everything.
 
 ## Options
 
