@@ -407,6 +407,13 @@ function TickPulse:AcquireAuraOverlay(button)
         valueText:Hide()
         overlay.valueText = valueText
 
+        local ticksText = overlay:CreateFontString(nil, "OVERLAY", "NumberFontNormalSmall")
+        ticksText:SetPoint("TOPRIGHT", overlay, "TOPRIGHT", 1, 1)
+        ticksText:SetTextColor(0.6, 1, 0.6)
+        ticksText:SetText("")
+        ticksText:Hide()
+        overlay.ticksText = ticksText
+
         button.TickPulseOverlay = overlay
     end
 
@@ -421,6 +428,10 @@ local function hideOverlay(overlay)
     if overlay.valueText then
         overlay.valueText:SetText("")
         overlay.valueText:Hide()
+    end
+    if overlay.ticksText then
+        overlay.ticksText:SetText("")
+        overlay.ticksText:Hide()
     end
     overlay.tickPulseCycle = nil
     overlay:Hide()
@@ -458,14 +469,61 @@ function TickPulse:FormatTickRemaining(seconds)
     return string.format("%.1f", seconds)
 end
 
+-- Ticks still to come, or nil when the aura's expiration is unknown.
+function TickPulse:GetTicksLeft(tracked, t)
+    local interval = tracked.interval
+    if not tracked.expirationTime or not tracked.anchor or not interval or interval <= 0 then
+        return nil
+    end
+
+    local total = math.floor((tracked.expirationTime - tracked.anchor) / interval + 0.01)
+    local passed = math.floor(math.max(0, t - tracked.anchor) / interval)
+    return math.max(0, total - passed)
+end
+
+-- Recasting a Classic-era DoT/HoT restarts its tick timer, throwing away the progress
+-- toward the next tick. In the refresh window (last two ticks of your own aura), flag
+-- the second half of each tick, when a recast would waste more than half a tick.
+function TickPulse:IsClipRisk(tracked, t, cycleStart, ticksLeft)
+    if self.Config.clipWarning == false or not cycleStart or not ticksLeft or ticksLeft > 2 then
+        return false
+    end
+    if tracked.sourceKey ~= playerGUID() and not tracked.isTest then
+        return false
+    end
+    return (t - cycleStart) > tracked.interval * 0.5
+end
+
+local CLIP_COLOR = { 1, 0.15, 0.1 }
+local DEFAULT_SWIPE_COLOR = { 1, 0.85, 0.1 }
+
+function TickPulse:GetSwipeColor(tracked, t, cycleStart, ticksLeft)
+    if self:IsClipRisk(tracked, t, cycleStart, ticksLeft) then
+        return CLIP_COLOR
+    end
+    return DEFAULT_SWIPE_COLOR
+end
+
 function TickPulse:ApplyOverlayVisuals(tracked, overlay, t, cycleStart)
     local showRotating = self.Config.showRotatingTicker ~= false
     local showNumeric = self.Config.showNumericTicker == true
     local opacity = self:GetOverlayOpacity()
+    local ticksLeft = self:GetTicksLeft(tracked, t)
+    local color = self:GetSwipeColor(tracked, t, cycleStart, ticksLeft)
 
     overlay:SetDrawSwipe(showRotating)
     overlay:SetDrawEdge(showRotating)
-    overlay:SetSwipeColor(1, 0.85, 0.1, showRotating and opacity or 0)
+    overlay:SetSwipeColor(color[1], color[2], color[3], showRotating and opacity or 0)
+
+    if overlay.ticksText then
+        if self.Config.showTicksLeft and ticksLeft then
+            overlay.ticksText:SetText(tostring(ticksLeft))
+            overlay.ticksText:Show()
+        else
+            overlay.ticksText:SetText("")
+            overlay.ticksText:Hide()
+        end
+    end
 
     if showRotating and cycleStart then
         if overlay.tickPulseCycle ~= cycleStart or overlay.tickPulseInterval ~= tracked.interval then
@@ -876,6 +934,12 @@ function TickPulse:UpdateLayout()
     local claimed = {}
 
     for key, tracked in pairs(self.active) do
+        if tracked.loopDuration and tracked.expirationTime and tracked.expirationTime <= t then
+            -- Test-mode aura: start over instead of expiring.
+            tracked.anchor = t
+            tracked.expirationTime = t + tracked.loopDuration
+        end
+
         if tracked.expirationTime and tracked.expirationTime <= t then
             self:RemoveTracker(key)
         elseif not self:ShouldRenderTickerOnUnit(tracked.buttonUnit or tracked.unit) then
@@ -993,6 +1057,8 @@ function TickPulse:CreateOptionsPanel()
     addHeader("Visuals")
     addCheckbox("showRotatingTicker", "Show rotating ticker", "Draw a swipe that completes once per tick.")
     addCheckbox("showNumericTicker", "Show numeric values on ticker", "Show seconds until the next tick.")
+    addCheckbox("showTicksLeft", "Show ticks left", "Show how many ticks the aura has left in the icon's top-right corner (needs a known duration).")
+    addCheckbox("clipWarning", "Warn before clipping a tick", "In the last two ticks of your own DoT or HoT, turn the swipe red during the second half of each tick: recasting then throws away more than half a tick.")
     addCheckbox("showChannelTicks", "Show tick marks on the cast bar", "While channelling (Mind Flay, Drain Life, Evocation, bandages...), mark each tick on your cast bar and dim the ones that already happened.")
 
     local opacitySetting = Settings.RegisterProxySetting(category, "TICKPULSE_OVERLAY_OPACITY",
@@ -1036,8 +1102,8 @@ end
 
 local TEST_SOURCE = "tickpulse-test"
 local TEST_ICONS = {
-    { label = "DoT", spellType = "DOT", interval = 3.0, spellId = 589, fallback = "Interface\\Icons\\Spell_Shadow_ShadowWordPain" },
-    { label = "HoT", spellType = "HOT", interval = 2.0, spellId = 139, fallback = "Interface\\Icons\\Spell_Holy_Renew" },
+    { label = "DoT", spellType = "DOT", interval = 3.0, duration = 15, spellId = 589, fallback = "Interface\\Icons\\Spell_Shadow_ShadowWordPain" },
+    { label = "HoT", spellType = "HOT", interval = 2.0, duration = 10, spellId = 139, fallback = "Interface\\Icons\\Spell_Holy_Renew" },
 }
 
 function TickPulse:CreateTestFrame()
@@ -1131,6 +1197,8 @@ function TickPulse:StartTest()
         tracked.isTest = true
         tracked.fixedButton = testFrame.icons[i]
         tracked.anchor = t
+        tracked.loopDuration = spec.duration
+        tracked.expirationTime = t + spec.duration
     end
 
     local buffName, reason = self:AddTestTrackerOnRealBuff(t)

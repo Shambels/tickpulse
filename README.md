@@ -48,10 +48,15 @@ Optional custom destination:
 
 Addons cannot put real auras on you, so `/tpulse test` (run out of combat) fakes them:
 
-- A small draggable "TickPulse test" frame shows a fake DoT icon (3s ticks) and a fake HoT icon (2s ticks). Use it to check the swipe, the numbers, opacity and the Settings toggles.
+- A small draggable "TickPulse test" frame shows a fake DoT icon (3s ticks, 15s duration) and a fake HoT icon (2s ticks, 10s duration). Both restart when they run out, so you can also watch the ticks-left count and the clip warning. Use it to check the swipe, the numbers, opacity and the Settings toggles.
 - If you have any buff (food, a class self-buff), a fake 3s tick schedule is attached to its icon on the real buff frame. This tests matching against Blizzard's buff buttons. It follows the "Show ticker on player auras" toggle.
 
 `/tpulse debug test` lists the test trackers and which button each one is bound to (`(missing)` means the real buff icon could not be matched). `/tpulse test off` removes everything.
+
+## Ticks left and clip warning
+
+- **Ticks left** (off by default): a small number in the icon's top-right corner shows how many ticks the aura still has. It needs a known duration, so it's missing for auras whose duration TickPulse hasn't seen yet.
+- **Clip warning** (on by default): recasting a Classic-era DoT or HoT restarts its tick timer, which throws away the progress toward the next tick. In the last two ticks of your own aura, the swipe turns red during the second half of each tick. Recast while it isn't red.
 
 ## Cast bar tick marks
 
@@ -70,6 +75,8 @@ It covers the aura-tracked channels (Mind Flay, Drain Life, Drain Soul, Drain Ma
    - Track other players' HoTs/DoTs on you
    - Show rotating ticker
    - Show numeric values on ticker
+   - Show ticks left
+   - Warn before clipping a tick
    - Show tick marks on the cast bar
    - Overlay opacity slider (0% to 100%)
    - Reset visual defaults (numeric off, rotating on, opacity 65%)

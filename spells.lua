@@ -161,6 +161,8 @@ TickPulse.Config = {
     overlayOpacity = 0.65,
     trackExternalOnPlayer = true,
     showChannelTicks = true,
+    showTicksLeft = false,
+    clipWarning = true,
     monitoredUnits = {
         "target", -- DoTs on target + HoTs if friendly target
         "player", -- HoTs/DoTs on self (including other-player casts when enabled)
@@ -178,4 +180,6 @@ TickPulse.PersistedKeys = {
     "overlayOpacity",
     "trackExternalOnPlayer",
     "showChannelTicks",
+    "showTicksLeft",
+    "clipWarning",
 }
