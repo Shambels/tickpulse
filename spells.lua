@@ -165,6 +165,10 @@ TickPulse.Config = {
     clipWarning = true,
     tickFlash = false,
     tickSound = false,
+    dotColor = { r = 1, g = 0.85, b = 0.1 },
+    hotColor = { r = 0.3, g = 1, b = 0.45 },
+    lastTickColorEnabled = false,
+    lastTickColor = { r = 1, g = 0.5, b = 0 },
     monitoredUnits = {
         "target", -- DoTs on target + HoTs if friendly target
         "player", -- HoTs/DoTs on self (including other-player casts when enabled)
@@ -186,4 +190,8 @@ TickPulse.PersistedKeys = {
     "clipWarning",
     "tickFlash",
     "tickSound",
+    "dotColor",
+    "hotColor",
+    "lastTickColorEnabled",
+    "lastTickColor",
 }

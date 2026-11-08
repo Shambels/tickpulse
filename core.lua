@@ -494,14 +494,28 @@ function TickPulse:IsClipRisk(tracked, t, cycleStart, ticksLeft)
     return (t - cycleStart) > tracked.interval * 0.5
 end
 
-local CLIP_COLOR = { 1, 0.15, 0.1 }
-local DEFAULT_SWIPE_COLOR = { 1, 0.85, 0.1 }
+local CLIP_COLOR = { r = 1, g = 0.15, b = 0.1 }
+local FALLBACK_COLOR = { r = 1, g = 0.85, b = 0.1 }
 
+local function validColor(color)
+    return type(color) == "table" and tonumber(color.r) and tonumber(color.g) and tonumber(color.b) and color or nil
+end
+
+-- Priority: clip warning, then last tick, then the DoT/HoT colour.
 function TickPulse:GetSwipeColor(tracked, t, cycleStart, ticksLeft)
     if self:IsClipRisk(tracked, t, cycleStart, ticksLeft) then
         return CLIP_COLOR
     end
-    return DEFAULT_SWIPE_COLOR
+
+    if self.Config.lastTickColorEnabled and ticksLeft == 1 then
+        local lastTick = validColor(self.Config.lastTickColor)
+        if lastTick then
+            return lastTick
+        end
+    end
+
+    local key = (tracked.spellType == "HOT") and "hotColor" or "dotColor"
+    return validColor(self.Config[key]) or FALLBACK_COLOR
 end
 
 local TICK_SOUND_THROTTLE = 0.15
@@ -560,7 +574,7 @@ function TickPulse:ApplyOverlayVisuals(tracked, overlay, t, cycleStart)
 
     overlay:SetDrawSwipe(showRotating)
     overlay:SetDrawEdge(showRotating)
-    overlay:SetSwipeColor(color[1], color[2], color[3], showRotating and opacity or 0)
+    overlay:SetSwipeColor(color.r, color.g, color.b, showRotating and opacity or 0)
 
     if overlay.ticksText then
         if self.Config.showTicksLeft and ticksLeft then
@@ -1027,20 +1041,33 @@ end
 -- Settings (modern Settings panel)
 --------------------------------------------------------------------------------
 
+-- Copies one level deep, enough for colour tables.
+local function copyValue(value)
+    if type(value) ~= "table" then
+        return value
+    end
+    local copy = {}
+    for k, v in pairs(value) do
+        copy[k] = v
+    end
+    return copy
+end
+TickPulse.CopyValue = copyValue
+
 -- Shipped defaults, captured before saved variables are applied.
 local DEFAULTS = {}
 for _, key in ipairs(TickPulse.PersistedKeys) do
-    DEFAULTS[key] = TickPulse.Config[key]
+    DEFAULTS[key] = copyValue(TickPulse.Config[key])
 end
+TickPulse.Defaults = DEFAULTS
 
 function TickPulse:LoadSavedVariables()
     TickPulseDB = TickPulseDB or {}
     for _, key in ipairs(self.PersistedKeys) do
         if TickPulseDB[key] == nil then
-            TickPulseDB[key] = self.Config[key]
-        else
-            self.Config[key] = TickPulseDB[key]
+            TickPulseDB[key] = copyValue(self.Config[key])
         end
+        self.Config[key] = copyValue(TickPulseDB[key])
     end
 
     if type(TickPulseDB.learnedDurations) == "table" then
@@ -1053,16 +1080,43 @@ function TickPulse:LoadSavedVariables()
     TickPulseDB.learnedDurations = self.learnedDurations
 end
 
-function TickPulse:SetOption(key, value)
-    self.Config[key] = value
+-- `visualOnly` skips the aura rescan (used while dragging the colour picker).
+function TickPulse:SetOption(key, value, visualOnly)
+    self.Config[key] = copyValue(value)
     if TickPulseDB then
-        TickPulseDB[key] = value
+        TickPulseDB[key] = copyValue(value)
     end
 
     -- Changing a visibility option should not leave the addon globally disabled.
     self.Config.enabled = true
-    self:ScanAllUnits()
+    if not visualOnly then
+        self:ScanAllUnits()
+    end
     self:UpdateLayout()
+end
+
+function TickPulse:OpenColorPicker(key)
+    if not (ColorPickerFrame and ColorPickerFrame.SetupColorPickerAndShow) then
+        print("TickPulse: the colour picker is not available on this client.")
+        return
+    end
+
+    local current = validColor(self.Config[key]) or validColor(DEFAULTS[key]) or FALLBACK_COLOR
+    local previous = copyValue(current)
+
+    ColorPickerFrame:SetupColorPickerAndShow({
+        r = current.r,
+        g = current.g,
+        b = current.b,
+        hasOpacity = false,
+        swatchFunc = function()
+            local r, g, b = ColorPickerFrame:GetColorRGB()
+            self:SetOption(key, { r = r, g = g, b = b }, true)
+        end,
+        cancelFunc = function()
+            self:SetOption(key, previous, true)
+        end,
+    })
 end
 
 function TickPulse:CreateOptionsPanel()
@@ -1123,12 +1177,31 @@ function TickPulse:CreateOptionsPanel()
     Settings.CreateSlider(category, opacitySetting, sliderOptions, "Opacity of the tick swipe and numbers.")
     settingsByKey.overlayOpacity = opacitySetting
 
+    addHeader("Colours")
+    addCheckbox("lastTickColorEnabled", "Use a different colour on the last tick", "Switch the swipe to the last-tick colour while the aura's final tick is pending (needs a known duration).")
+
+    local function addColorButton(key, label, tooltip)
+        if layout and CreateSettingsButtonInitializer then
+            layout:AddInitializer(CreateSettingsButtonInitializer(label, "Choose...", function()
+                self:OpenColorPicker(key)
+            end, tooltip, true))
+        end
+    end
+
+    addColorButton("dotColor", "DoT swipe colour", "Colour of the swipe on damage-over-time auras.")
+    addColorButton("hotColor", "HoT swipe colour", "Colour of the swipe on heal-over-time auras.")
+    addColorButton("lastTickColor", "Last tick colour", "Colour used for the final tick when the option above is on.")
+
     if layout and CreateSettingsButtonInitializer then
         layout:AddInitializer(CreateSettingsButtonInitializer("Reset visual defaults", "Reset", function()
             settingsByKey.showNumericTicker:SetValue(DEFAULTS.showNumericTicker)
             settingsByKey.showRotatingTicker:SetValue(DEFAULTS.showRotatingTicker)
             settingsByKey.overlayOpacity:SetValue(DEFAULTS.overlayOpacity * 100)
-        end, "Numeric off, rotating on, opacity 65%.", true))
+            settingsByKey.lastTickColorEnabled:SetValue(DEFAULTS.lastTickColorEnabled)
+            self:SetOption("dotColor", DEFAULTS.dotColor, true)
+            self:SetOption("hotColor", DEFAULTS.hotColor, true)
+            self:SetOption("lastTickColor", DEFAULTS.lastTickColor, true)
+        end, "Numeric off, rotating on, opacity 65%, default colours.", true))
     end
 
     Settings.RegisterAddOnCategory(category)

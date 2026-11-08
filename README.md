@@ -81,7 +81,8 @@ It covers the aura-tracked channels (Mind Flay, Drain Life, Drain Soul, Drain Ma
    - Play a sound on each tick (your own auras only, throttled)
    - Show tick marks on the cast bar
    - Overlay opacity slider (0% to 100%)
-   - Reset visual defaults (numeric off, rotating on, opacity 65%)
+   - Colours: DoT swipe colour (gold), HoT swipe colour (green), and an optional last-tick colour (orange, off by default), each with a colour picker. The clip warning's red takes priority over the last-tick colour.
+   - Reset visual defaults (numeric off, rotating on, opacity 65%, default colours)
 
 ## How it works on WoW Forever
 
