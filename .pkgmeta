@@ -7,4 +7,5 @@ ignore:
   - .github
   - .luacheckrc
   - deploy-addon.ps1
-  - TickPulse-logo-heartmonitor.svg
+  - media/TickPulse-logo.svg
+  - media/TickPulse-logo-400.png

@@ -4,6 +4,7 @@
 ## Author: Shambles
 ## Version: @project-version@
 ## Category: Combat
+## IconTexture: Interface\AddOns\TickPulse\media\TickPulse-icon
 ## SavedVariables: TickPulseDB
 ## X-License: MIT
 # Add these once the projects exist, so tagged releases upload automatically:

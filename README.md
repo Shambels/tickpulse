@@ -1,5 +1,7 @@
 # TickPulse (WoW Forever)
 
+<p align="center"><img src="media/TickPulse-logo-400.png" width="160" alt="TickPulse logo"></p>
+
 TickPulse shows a rotating overlay on your periodic aura icons that resets on every tick:
 
 - DoTs: the swipe goes from one damage tick to the next.
@@ -10,7 +12,7 @@ This branch targets the **WoW Forever** client (`## Interface: 16001`). The orig
 ## Install
 
 1. Create a folder named `TickPulse` in your WoW Forever addons directory.
-2. Copy `TickPulse.toc` and every `.lua` file into that folder (or link the repository folder, see below).
+2. Copy `TickPulse.toc`, every `.lua` file and the `media` folder into that folder (or link the repository folder, see below).
 3. Launch or reload the game (`/reload`).
 
 Typical path:
