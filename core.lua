@@ -504,7 +504,54 @@ function TickPulse:GetSwipeColor(tracked, t, cycleStart, ticksLeft)
     return DEFAULT_SWIPE_COLOR
 end
 
+local TICK_SOUND_THROTTLE = 0.15
+local lastTickSound = 0
+
+local function flashOverlay(overlay)
+    local flash = overlay.tickFlash
+    if not flash then
+        local texture = overlay:CreateTexture(nil, "OVERLAY", nil, 7)
+        texture:SetAllPoints(overlay)
+        texture:SetTexture("Interface\\Buttons\\ButtonHilight-Square")
+        texture:SetBlendMode("ADD")
+        texture:SetAlpha(0)
+
+        local group = texture:CreateAnimationGroup()
+        local fade = group:CreateAnimation("Alpha")
+        fade:SetFromAlpha(1)
+        fade:SetToAlpha(0)
+        fade:SetDuration(0.35)
+        fade:SetSmoothing("OUT")
+
+        flash = { texture = texture, group = group }
+        overlay.tickFlash = flash
+    end
+
+    flash.group:Stop()
+    flash.group:Play()
+end
+
+-- Called when a predicted tick happens on a visible overlay.
+function TickPulse:OnTick(tracked, overlay, t)
+    if self.Config.tickFlash then
+        flashOverlay(overlay)
+    end
+
+    local mine = tracked.isTest or tracked.sourceKey == playerGUID()
+    if self.Config.tickSound and mine and (t - lastTickSound) >= TICK_SOUND_THROTTLE then
+        lastTickSound = t
+        local sound = (SOUNDKIT and SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON) or 856
+        PlaySound(sound, "SFX")
+    end
+end
+
 function TickPulse:ApplyOverlayVisuals(tracked, overlay, t, cycleStart)
+    -- A new cycle that started moments ago is a tick (not a re-shown overlay).
+    if cycleStart and tracked.lastCycleStart and cycleStart ~= tracked.lastCycleStart and (t - cycleStart) < 0.25 then
+        self:OnTick(tracked, overlay, t)
+    end
+    tracked.lastCycleStart = cycleStart
+
     local showRotating = self.Config.showRotatingTicker ~= false
     local showNumeric = self.Config.showNumericTicker == true
     local opacity = self:GetOverlayOpacity()
@@ -1059,6 +1106,8 @@ function TickPulse:CreateOptionsPanel()
     addCheckbox("showNumericTicker", "Show numeric values on ticker", "Show seconds until the next tick.")
     addCheckbox("showTicksLeft", "Show ticks left", "Show how many ticks the aura has left in the icon's top-right corner (needs a known duration).")
     addCheckbox("clipWarning", "Warn before clipping a tick", "In the last two ticks of your own DoT or HoT, turn the swipe red during the second half of each tick: recasting then throws away more than half a tick.")
+    addCheckbox("tickFlash", "Flash the icon on each tick", "Briefly highlight the aura icon every time it ticks.")
+    addCheckbox("tickSound", "Play a sound on each tick", "Play a short click when your own DoTs and HoTs tick.")
     addCheckbox("showChannelTicks", "Show tick marks on the cast bar", "While channelling (Mind Flay, Drain Life, Evocation, bandages...), mark each tick on your cast bar and dim the ones that already happened.")
 
     local opacitySetting = Settings.RegisterProxySetting(category, "TICKPULSE_OVERLAY_OPACITY",

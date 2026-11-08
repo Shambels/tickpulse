@@ -77,6 +77,8 @@ It covers the aura-tracked channels (Mind Flay, Drain Life, Drain Soul, Drain Ma
    - Show numeric values on ticker
    - Show ticks left
    - Warn before clipping a tick
+   - Flash the icon on each tick
+   - Play a sound on each tick (your own auras only, throttled)
    - Show tick marks on the cast bar
    - Overlay opacity slider (0% to 100%)
    - Reset visual defaults (numeric off, rotating on, opacity 65%)

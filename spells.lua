@@ -163,6 +163,8 @@ TickPulse.Config = {
     showChannelTicks = true,
     showTicksLeft = false,
     clipWarning = true,
+    tickFlash = false,
+    tickSound = false,
     monitoredUnits = {
         "target", -- DoTs on target + HoTs if friendly target
         "player", -- HoTs/DoTs on self (including other-player casts when enabled)
@@ -182,4 +184,6 @@ TickPulse.PersistedKeys = {
     "showChannelTicks",
     "showTicksLeft",
     "clipWarning",
+    "tickFlash",
+    "tickSound",
 }
