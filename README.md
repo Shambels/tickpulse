@@ -101,3 +101,9 @@ These come from the client's addon restrictions and need in-game confirmation:
 ## License
 
 TickPulse is licensed under the MIT License. See [LICENSE](LICENSE).
+
+## Development
+
+- Every push and pull request runs [luacheck](https://github.com/lunarmodules/luacheck) through GitHub Actions (`.github/workflows/luacheck.yml`), using `.luacheckrc`. It catches syntax errors, typos in globals and unused variables before you load the game.
+- To run it locally, install Lua and LuaRocks, then `luarocks install luacheck` and run `luacheck .` in the repository root.
+- When you use a new WoW API global, add it to `read_globals` in `.luacheckrc`.
