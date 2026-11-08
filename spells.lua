@@ -13,66 +13,66 @@ TickPulse.SpellsByName = TickPulse.SpellsByName or {}
 -- cannot be used as the tick anchor while aura data is hidden in combat.
 local seedSpells = {
     -- Warrior
-    { id = 772, name = "Rend", type = "DOT", interval = 3.0 },
-    { id = 12721, name = "Deep Wounds", type = "DOT", interval = 3.0 },
+    { class = "WARRIOR", id = 772, name = "Rend", type = "DOT", interval = 3.0 },
+    { class = "WARRIOR", id = 12721, name = "Deep Wounds", type = "DOT", interval = 3.0 },
 
     -- Hunter
-    { id = 1978, name = "Serpent Sting", type = "DOT", interval = 3.0, travel = true },
-    { id = 3034, name = "Viper Sting", type = "DOT", interval = 2.0, travel = true },
-    { id = 13797, name = "Immolation Trap Effect", type = "DOT", interval = 3.0 },
-    { id = 13812, name = "Explosive Trap Effect", type = "DOT", interval = 2.0 },
+    { class = "HUNTER", id = 1978, name = "Serpent Sting", type = "DOT", interval = 3.0, travel = true },
+    { class = "HUNTER", id = 3034, name = "Viper Sting", type = "DOT", interval = 2.0, travel = true },
+    { class = "HUNTER", id = 13797, name = "Immolation Trap Effect", type = "DOT", interval = 3.0 },
+    { class = "HUNTER", id = 13812, name = "Explosive Trap Effect", type = "DOT", interval = 2.0 },
 
     -- Rogue
-    { id = 703, name = "Garrote", type = "DOT", interval = 3.0 },
-    { id = 1943, name = "Rupture", type = "DOT", interval = 2.0 },
-    { id = 2818, name = "Deadly Poison", type = "DOT", interval = 3.0 },
+    { class = "ROGUE", id = 703, name = "Garrote", type = "DOT", interval = 3.0 },
+    { class = "ROGUE", id = 1943, name = "Rupture", type = "DOT", interval = 2.0 },
+    { class = "ROGUE", id = 2818, name = "Deadly Poison", type = "DOT", interval = 3.0 },
 
     -- Priest
-    { id = 589, name = "Shadow Word: Pain", type = "DOT", interval = 3.0 },
-    { id = 2944, name = "Devouring Plague", type = "DOT", interval = 3.0 },
-    { id = 14914, name = "Holy Fire", type = "DOT", interval = 2.0 },
-    { id = 15407, name = "Mind Flay", type = "DOT", interval = 1.0 },
-    { id = 139, name = "Renew", type = "HOT", interval = 3.0 },
+    { class = "PRIEST", id = 589, name = "Shadow Word: Pain", type = "DOT", interval = 3.0 },
+    { class = "PRIEST", id = 2944, name = "Devouring Plague", type = "DOT", interval = 3.0 },
+    { class = "PRIEST", id = 14914, name = "Holy Fire", type = "DOT", interval = 2.0 },
+    { class = "PRIEST", id = 15407, name = "Mind Flay", type = "DOT", interval = 1.0 },
+    { class = "PRIEST", id = 139, name = "Renew", type = "HOT", interval = 3.0 },
 
     -- Shaman
-    { id = 8050, name = "Flame Shock", type = "DOT", interval = 3.0 },
+    { class = "SHAMAN", id = 8050, name = "Flame Shock", type = "DOT", interval = 3.0 },
 
     -- Mage
-    { id = 133, name = "Fireball", type = "DOT", interval = 2.0, travel = true },
-    { id = 11366, name = "Pyroblast", type = "DOT", interval = 3.0, travel = true },
-    { id = 12654, name = "Ignite", type = "DOT", interval = 2.0 },
-    { id = 12051, name = "Evocation", type = "HOT", interval = 2.0, self = true },
+    { class = "MAGE", id = 133, name = "Fireball", type = "DOT", interval = 2.0, travel = true },
+    { class = "MAGE", id = 11366, name = "Pyroblast", type = "DOT", interval = 3.0, travel = true },
+    { class = "MAGE", id = 12654, name = "Ignite", type = "DOT", interval = 2.0 },
+    { class = "MAGE", id = 12051, name = "Evocation", type = "HOT", interval = 2.0, self = true },
 
     -- Warlock
-    { id = 172, name = "Corruption", type = "DOT", interval = 3.0 },
-    { id = 980, name = "Curse of Agony", type = "DOT", interval = 2.0 },
-    { id = 348, name = "Immolate", type = "DOT", interval = 3.0 },
-    { id = 18265, name = "Siphon Life", type = "DOT", interval = 3.0 },
-    { id = 689, name = "Drain Life", type = "DOT", interval = 1.0 },
-    { id = 1120, name = "Drain Soul", type = "DOT", interval = 3.0 },
-    { id = 5138, name = "Drain Mana", type = "DOT", interval = 1.0 },
+    { class = "WARLOCK", id = 172, name = "Corruption", type = "DOT", interval = 3.0 },
+    { class = "WARLOCK", id = 980, name = "Curse of Agony", type = "DOT", interval = 2.0 },
+    { class = "WARLOCK", id = 348, name = "Immolate", type = "DOT", interval = 3.0 },
+    { class = "WARLOCK", id = 18265, name = "Siphon Life", type = "DOT", interval = 3.0 },
+    { class = "WARLOCK", id = 689, name = "Drain Life", type = "DOT", interval = 1.0 },
+    { class = "WARLOCK", id = 1120, name = "Drain Soul", type = "DOT", interval = 3.0 },
+    { class = "WARLOCK", id = 5138, name = "Drain Mana", type = "DOT", interval = 1.0 },
 
     -- Druid
-    { id = 740, name = "Tranquility", type = "HOT", interval = 2.0, self = true },
-    { id = 774, name = "Rejuvenation", type = "HOT", interval = 3.0 },
-    { id = 8936, name = "Regrowth", type = "HOT", interval = 3.0 },
-    { id = 8921, name = "Moonfire", type = "DOT", interval = 3.0 },
-    { id = 5570, name = "Insect Swarm", type = "DOT", interval = 2.0 },
-    { id = 1079, name = "Rip", type = "DOT", interval = 2.0 },
-    { id = 1822, name = "Rake", type = "DOT", interval = 3.0 },
-    { id = 9007, name = "Pounce Bleed", type = "DOT", interval = 3.0 },
+    { class = "DRUID", id = 740, name = "Tranquility", type = "HOT", interval = 2.0, self = true },
+    { class = "DRUID", id = 774, name = "Rejuvenation", type = "HOT", interval = 3.0 },
+    { class = "DRUID", id = 8936, name = "Regrowth", type = "HOT", interval = 3.0 },
+    { class = "DRUID", id = 8921, name = "Moonfire", type = "DOT", interval = 3.0 },
+    { class = "DRUID", id = 5570, name = "Insect Swarm", type = "DOT", interval = 2.0 },
+    { class = "DRUID", id = 1079, name = "Rip", type = "DOT", interval = 2.0 },
+    { class = "DRUID", id = 1822, name = "Rake", type = "DOT", interval = 3.0 },
+    { class = "DRUID", id = 9007, name = "Pounce Bleed", type = "DOT", interval = 3.0 },
 
     -- First Aid: every bandage's channelled heal aura is named "First Aid",
     -- so one entry covers Linen through Heavy Runecloth.
-    { id = 746, name = "First Aid", type = "HOT", interval = 1.0 },
+    { class = "ALL", id = 746, name = "First Aid", type = "HOT", interval = 1.0 },
 
     -- Not in Classic 1-60. Kept in case Forever's new abilities reuse them;
     -- entries are ignored when the client has no such spell.
-    { id = 31803, type = "DOT", interval = 3.0 },  -- Holy Vengeance
-    { id = 34914, type = "DOT", interval = 3.0 },  -- Vampiric Touch
-    { id = 30108, type = "DOT", interval = 3.0 },  -- Unstable Affliction
-    { id = 33763, type = "HOT", interval = 1.0 },  -- Lifebloom
-    { id = 33745, type = "DOT", interval = 3.0 },  -- Lacerate
+    { class = "PALADIN", id = 31803, type = "DOT", interval = 3.0 },  -- Holy Vengeance
+    { class = "PRIEST", id = 34914, type = "DOT", interval = 3.0 },  -- Vampiric Touch
+    { class = "WARLOCK", id = 30108, type = "DOT", interval = 3.0 },  -- Unstable Affliction
+    { class = "DRUID", id = 33763, type = "HOT", interval = 1.0 },  -- Lifebloom
+    { class = "DRUID", id = 33745, type = "DOT", interval = 3.0 },  -- Lacerate
 }
 
 -- Channelled spells that tick but leave no trackable aura on a monitored unit.
@@ -107,18 +107,55 @@ local function resolveSpellName(spellId)
 end
 TickPulse.ResolveSpellName = resolveSpellName
 
+-- Seed spells followed by the user's custom spells (TickPulseDB.customSpells).
+local function allEntries()
+    local entries = {}
+    for _, entry in ipairs(seedSpells) do
+        entries[#entries + 1] = entry
+    end
+
+    local custom = TickPulseDB and TickPulseDB.customSpells
+    if type(custom) == "table" then
+        for id, spec in pairs(custom) do
+            local spellId = tonumber(id)
+            if spellId and type(spec) == "table" then
+                entries[#entries + 1] = {
+                    class = "CUSTOM",
+                    id = spellId,
+                    type = (spec.type == "HOT") and "HOT" or "DOT",
+                    interval = tonumber(spec.interval) or 3.0,
+                    self = spec.self or false,
+                    custom = true,
+                }
+            end
+        end
+    end
+
+    return entries
+end
+
 -- Builds the name index. Called at load and again at login, because spell
--- data may not be cached yet when the addon files are first executed.
+-- data may not be cached yet when the addon files are first executed, and
+-- whenever per-spell settings change. Per-spell overrides
+-- (TickPulseDB.spellOverrides, keyed by spell ID) disable a spell or change its
+-- tick interval.
 function TickPulse:BuildSpellIndex()
     self.SpellList = {}
     wipe(self.Spells)
     wipe(self.SpellsByName)
 
-    for _, entry in ipairs(seedSpells) do
+    local overrides = (TickPulseDB and type(TickPulseDB.spellOverrides) == "table") and TickPulseDB.spellOverrides or {}
+
+    for _, entry in ipairs(allEntries()) do
+        local override = overrides[entry.id] or {}
         local info = {
             seedId = entry.id,
+            class = entry.class,
+            custom = entry.custom or false,
             type = entry.type,
-            interval = entry.interval,
+            defaultInterval = entry.interval,
+            interval = tonumber(override.interval) or entry.interval,
+            disabled = override.disabled == true,
             self = entry.self or false,
             travel = entry.travel or false,
         }
@@ -129,6 +166,7 @@ function TickPulse:BuildSpellIndex()
             self.SpellsByName[localized] = info
         end
 
+        -- Custom spells must resolve on this client; they have no fallback name.
         if entry.name and not self.SpellsByName[entry.name] then
             info.name = info.name or entry.name
             self.SpellsByName[entry.name] = info

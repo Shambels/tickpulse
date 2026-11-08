@@ -83,7 +83,7 @@ end
 function TickPulse:GetSpellInfo(spellId, spellName)
     local info = spellId and self.Spells[spellId]
     if info then
-        return info
+        return (not info.disabled) and info or nil
     end
 
     if not spellName and spellId then
@@ -99,7 +99,7 @@ function TickPulse:GetSpellInfo(spellId, spellName)
         if spellId then
             self.Spells[spellId] = byName
         end
-        return byName
+        return (not byName.disabled) and byName or nil
     end
 
     return nil
@@ -1204,6 +1204,10 @@ function TickPulse:CreateOptionsPanel()
         end, "Numeric off, rotating on, opacity 65%, default colours.", true))
     end
 
+    if self.CreateSpellSettings then
+        self:CreateSpellSettings(category)
+    end
+
     Settings.RegisterAddOnCategory(category)
     self.settingsCategory = category
 end
@@ -1488,7 +1492,10 @@ SlashCmdList.TICKPULSE = function(msg)
         else
             TickPulse:StartTest()
         end
+    elseif TickPulse.HandleSpellCommand and TickPulse:HandleSpellCommand(cmd, arg) then
+        return
     else
         print("TickPulse commands: /tpulse show | hide | scan | options | test [off] | debug [player|target|focus|test]")
+        print("  spells | spell <id|name> on|off | interval <id|name> <sec|reset> | add <id> <sec> [dot|hot] [self] | remove <id>")
     end
 end

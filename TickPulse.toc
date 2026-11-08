@@ -9,4 +9,5 @@
 
 spells.lua
 core.lua
+spellconfig.lua
 castbar.lua

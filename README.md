@@ -106,7 +106,18 @@ These come from the client's addon restrictions and need in-game confirmation:
 - While auras are secret, TickPulse cannot see auras that other players apply to you, and it cannot tell whether your cast was resisted.
 - For projectiles (Fireball, Pyroblast, Serpent Sting, Viper Sting) the aura lands after the cast, so their in-combat schedule is only started from aura data.
 - When you switch target or focus, TickPulse parks the old unit's trackers by GUID and restores them when you switch back (kept until they expire, or 2 minutes if the duration is unknown). If the client hides the unit's GUID, the trackers are dropped instead. The new target's own auras still can't be read until restrictions lift.
-- Talents or effects that change tick speed are not learned anymore: there is no combat log to learn from. Adjust `interval` in `spells.lua` if a spell ticks differently.
+- Talents or effects that change tick speed are not learned anymore: there is no combat log to learn from. Use `/tpulse interval <spell> <seconds>` if a spell ticks differently.
+
+## Per-spell settings and custom spells
+
+- Options -> AddOns -> TickPulse -> **Spells** lists your class's tracked spells (plus First Aid and your custom spells) with a checkbox to turn each one on or off.
+- Commands:
+   - `/tpulse spells`: list your class's spells, their tick interval and whether they are on.
+   - `/tpulse spell <spellID|name> on|off`: turn a spell on or off.
+   - `/tpulse interval <spellID|name> <seconds|reset>`: override a spell's tick interval, for example after a talent changes it.
+   - `/tpulse add <spellID> <seconds> [dot|hot] [self]`: track a spell that isn't in the list, such as one of Forever's new abilities. `self` means the aura lands on you even with a target selected.
+   - `/tpulse remove <spellID>`: forget a custom spell.
+- Settings are stored per spell ID in `TickPulseDB` (`spellOverrides`, `customSpells`), so they apply to every rank of the spell. A newly added custom spell is tracked immediately and shows up in the Spells page after `/reload`.
 
 ## Tracked spells
 
