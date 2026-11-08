@@ -316,6 +316,18 @@ function TickPulse:GetCandidateButtons(unit, spellType)
         collectAuraButtons(_G[rootName], list, seen, 0)
     end
 
+    -- Frames registered by other unit frame addons (see integrations.lua).
+    local extra = self.extraRoots and self.extraRoots[unit] and self.extraRoots[unit][spellType]
+    if extra then
+        for root in pairs(extra) do
+            if not seen[root] and getButtonIconRegion(root) then
+                seen[root] = true
+                list[#list + 1] = root
+            end
+            collectAuraButtons(root, list, seen, 0)
+        end
+    end
+
     self.buttonCache[cacheKey] = { time = t, list = list }
     return list
 end
@@ -1492,10 +1504,12 @@ SlashCmdList.TICKPULSE = function(msg)
         else
             TickPulse:StartTest()
         end
+    elseif cmd == "frames" and TickPulse.DetectUnitFrameAddons then
+        TickPulse:DetectUnitFrameAddons(true)
     elseif TickPulse.HandleSpellCommand and TickPulse:HandleSpellCommand(cmd, arg) then
         return
     else
-        print("TickPulse commands: /tpulse show | hide | scan | options | test [off] | debug [player|target|focus|test]")
+        print("TickPulse commands: /tpulse show | hide | scan | options | frames | test [off] | debug [player|target|focus|test]")
         print("  spells | spell <id|name> on|off | interval <id|name> <sec|reset> | add <id> <sec> [dot|hot] [self] | remove <id>")
     end
 end

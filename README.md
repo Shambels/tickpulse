@@ -41,6 +41,8 @@ Optional custom destination:
 - `/tpulse debug player|target|focus`
 
 - `/tpulse test` / `/tpulse test off`
+- `/tpulse frames`
+- `/tpulse spells`, `spell`, `interval`, `add`, `remove` (see "Per-spell settings")
 
 `/tpulse debug` also prints the client interface version and whether aura data is currently readable or secret.
 
@@ -118,6 +120,25 @@ These come from the client's addon restrictions and need in-game confirmation:
    - `/tpulse add <spellID> <seconds> [dot|hot] [self]`: track a spell that isn't in the list, such as one of Forever's new abilities. `self` means the aura lands on you even with a target selected.
    - `/tpulse remove <spellID>`: forget a custom spell.
 - Settings are stored per spell ID in `TickPulseDB` (`spellOverrides`, `customSpells`), so they apply to every rank of the spell. A newly added custom spell is tracked immediately and shows up in the Spells page after `/reload`.
+
+## Unit frame addons
+
+TickPulse draws on Blizzard's buff, target and focus frames by default. It also attaches to these addons automatically a few seconds after login:
+
+- **ElvUI**: player, target and focus unit frame auras, plus the player buff and debuff headers.
+- **Shadowed Unit Frames**: player, target and focus unit frames.
+
+`/tpulse frames` re-runs the detection and prints what it found.
+
+Other addons (EllesmereUI, custom frames, WeakAuras-style displays) can register their aura buttons with the public API:
+
+```lua
+-- auraType: "HELPFUL" for HoTs, "HARMFUL" for DoTs, or "ALL" (default)
+TickPulseAPI.RegisterAuraContainer(myTargetDebuffFrame, "target", "HARMFUL")
+TickPulseAPI.UnregisterAuraContainer(myTargetDebuffFrame)
+```
+
+The frame can be a container (its descendants are searched) or a single aura button. Buttons need an `Icon` or `icon` texture region. Setting `button.auraInstanceID` lets TickPulse match buttons exactly instead of by icon.
 
 ## Tracked spells
 
