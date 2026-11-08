@@ -81,7 +81,8 @@ Classic-era DoTs and HoTs tick on a fixed schedule from the moment they are appl
 
 1. **Aura data readable** (usually out of combat): the tick schedule is anchored at `expirationTime - duration` from `C_UnitAuras`. This is exact, and covers refreshes and auras cast by other players.
 2. **Aura data secret** (usually in combat): your own spellcasts are still readable. When you cast a tracked spell, TickPulse anchors the schedule at the cast time. Durations learned while auras were readable are saved and used to expire trackers.
-3. When restrictions lift (leaving combat, encounter end), TickPulse rescans and corrects everything from real aura data.
+3. **Never-hidden spells**: the client can mark individual spells as never secret. TickPulse asks `C_Secrets.ShouldSpellAuraBeSecret` for each tracked spell. For the ones that stay readable, it keeps reading your real auras in combat instead of predicting from the cast. `/tpulse debug` lists those spells and marks their trackers "live aura data".
+4. When restrictions lift (leaving combat, encounter end), TickPulse rescans and corrects everything from real aura data.
 
 ## Known limitations
 

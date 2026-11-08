@@ -97,8 +97,13 @@ TickPulse.ResolveSpellName = resolveSpellName
 -- Builds the name index. Called at load and again at login, because spell
 -- data may not be cached yet when the addon files are first executed.
 function TickPulse:BuildSpellIndex()
+    self.SpellList = {}
+    wipe(self.Spells)
+    wipe(self.SpellsByName)
+
     for _, entry in ipairs(seedSpells) do
         local info = {
+            seedId = entry.id,
             type = entry.type,
             interval = entry.interval,
             self = entry.self or false,
@@ -117,6 +122,9 @@ function TickPulse:BuildSpellIndex()
         end
 
         self.Spells[entry.id] = info
+        if info.name then
+            self.SpellList[#self.SpellList + 1] = info
+        end
     end
 end
 

@@ -121,17 +121,9 @@ end
 -- Aura reading
 --------------------------------------------------------------------------------
 
--- Returns a plain table of the readable aura fields, `false` when the aura exists
--- but is restricted, or nil when there is no aura at that index.
-local function readAuraByIndex(unit, index, filter)
-    if not (C_UnitAuras and C_UnitAuras.GetAuraDataByIndex) then
-        return nil
-    end
-
-    local ok, aura = pcall(C_UnitAuras.GetAuraDataByIndex, unit, index, filter)
-    if not ok then
-        return false
-    end
+-- Copies the readable fields of an AuraData table. Returns `false` when the whole
+-- table is secret, nil when there is no aura.
+local function plainAura(aura, index)
     if aura == nil then
         return nil
     end
@@ -148,7 +140,51 @@ local function readAuraByIndex(unit, index, filter)
         sourceUnit = readable(aura.sourceUnit),
         auraInstanceID = readable(aura.auraInstanceID),
         auraIndex = index,
+        -- Timing hidden even though the aura itself was returned.
+        timesSecret = (issecretvalue and (issecretvalue(aura.duration) or issecretvalue(aura.expirationTime))) or false,
     }
+end
+
+-- Returns a plain table of the readable aura fields, `false` when the aura exists
+-- but is restricted, or nil when there is no aura at that index.
+local function readAuraByIndex(unit, index, filter)
+    if not (C_UnitAuras and C_UnitAuras.GetAuraDataByIndex) then
+        return nil
+    end
+
+    local ok, aura = pcall(C_UnitAuras.GetAuraDataByIndex, unit, index, filter)
+    if not ok then
+        return false
+    end
+    return plainAura(aura, index)
+end
+
+-- Single-aura lookup by name. While restrictions are active it only returns
+-- data for spells the client never hides.
+local function readAuraBySpellName(unit, spellName, filter)
+    if not (C_UnitAuras and C_UnitAuras.GetAuraDataBySpellName) then
+        return nil
+    end
+
+    local ok, aura = pcall(C_UnitAuras.GetAuraDataBySpellName, unit, spellName, filter)
+    if not ok then
+        return false
+    end
+    return plainAura(aura, nil)
+end
+
+-- True when this spell's aura stays readable even while restrictions are active.
+function TickPulse:IsSpellAuraUnrestricted(spellInfo)
+    local spellId = spellInfo and spellInfo.seedId
+    if not spellId or not (C_Secrets and C_Secrets.ShouldSpellAuraBeSecret) then
+        return false
+    end
+
+    local ok, secret = pcall(C_Secrets.ShouldSpellAuraBeSecret, spellId)
+    if not ok then
+        return false
+    end
+    return readableBool(secret, true) == false
 end
 
 --------------------------------------------------------------------------------
@@ -543,7 +579,10 @@ function TickPulse:TrackAura(unit, aura, expectedType)
     tracked.lastSeen = t
 
     local duration, expirationTime = aura.duration, aura.expirationTime
-    if duration and duration > 0 and expirationTime and expirationTime > 0 then
+    if aura.timesSecret then
+        -- Keep the schedule we already have (from the cast or an earlier read).
+        return tracked.key
+    elseif duration and duration > 0 and expirationTime and expirationTime > 0 then
         if expirationTime <= t then
             self:RemoveTracker(tracked.key)
             return nil
@@ -567,6 +606,7 @@ function TickPulse:ScanUnit(unit)
     end
 
     if self:AurasAreSecret() then
+        self:ScanUnrestrictedSpells(unit)
         return
     end
 
@@ -603,6 +643,41 @@ function TickPulse:ScanUnit(unit)
             if tracked.unit == unit and not seen[key] then
                 self:RemoveTracker(key)
             end
+        end
+    end
+
+    self:InvalidateButtonCache()
+end
+
+-- While aura data is secret, look up each tracked spell the client leaves readable.
+-- Only the player's own auras are checked: a by-name lookup returns one aura, so it
+-- cannot tell several casters' copies apart.
+function TickPulse:ScanUnrestrictedSpells(unit)
+    local mySource = playerGUID()
+    local checked, seen = {}, {}
+
+    for _, spellInfo in ipairs(self.SpellList or {}) do
+        if not spellInfo.disabled and self:IsSpellAuraUnrestricted(spellInfo) then
+            checked[spellInfo.name] = true
+            local filter = (spellInfo.type == "DOT") and "HARMFUL|PLAYER" or "HELPFUL|PLAYER"
+            local aura = readAuraBySpellName(unit, spellInfo.name, filter)
+            if aura then
+                aura.name = aura.name or spellInfo.name
+                aura.sourceUnit = aura.sourceUnit or "player"
+                local key = self:TrackAura(unit, aura, spellInfo.type)
+                if key then
+                    seen[key] = true
+                    self.active[key].unrestricted = true
+                end
+            elseif aura == false then
+                checked[spellInfo.name] = nil
+            end
+        end
+    end
+
+    for key, tracked in pairs(self.active) do
+        if tracked.unit == unit and checked[tracked.name] and tracked.sourceKey == mySource and not seen[key] then
+            self:RemoveTracker(key)
         end
     end
 
@@ -661,6 +736,9 @@ function TickPulse:OnPlayerSpellCast(spellId)
     end
 
     if spellInfo.travel then
+        if self:IsSpellAuraUnrestricted(spellInfo) then
+            C_Timer.After(1.0, function() self:ScanUnit(unit) end)
+        end
         return
     end
 
@@ -675,6 +753,11 @@ function TickPulse:OnPlayerSpellCast(spellId)
     if duration then
         tracked.duration = duration
         tracked.expirationTime = t + duration
+    end
+
+    -- Unrestricted spells can be confirmed from real aura data straight away.
+    if self:IsSpellAuraUnrestricted(spellInfo) then
+        C_Timer.After(0.2, function() self:ScanUnit(unit) end)
     end
 end
 
@@ -986,10 +1069,18 @@ end
 
 function TickPulse:DebugBindings(unitFilter)
     local _, _, _, interfaceVersion = GetBuildInfo()
+    local unrestricted = {}
+    for _, spellInfo in ipairs(self.SpellList or {}) do
+        if self:IsSpellAuraUnrestricted(spellInfo) then
+            unrestricted[#unrestricted + 1] = spellInfo.name
+        end
+    end
+
     print(string.format("TickPulse debug | interface:%s | aura data:%s%s",
         tostring(interfaceVersion),
         self:AurasAreSecret() and "secret" or "readable",
         unitFilter and (" | unit:" .. unitFilter) or ""))
+    print("  never-hidden tracked spells: " .. (#unrestricted > 0 and table.concat(unrestricted, ", ") or "none reported"))
 
     local count = 0
     local t = now()
@@ -1001,9 +1092,10 @@ function TickPulse:DebugBindings(unitFilter)
             local cycleStart = self:GetCycleStart(tracked, t)
             local nextTick = cycleStart and string.format("%.1fs", cycleStart + tracked.interval - t) or "?"
 
-            print(string.format("  %s | unit:%s | every %.1fs | next:%s | button:%s | %s",
+            print(string.format("  %s | unit:%s | every %.1fs | next:%s | button:%s | %s%s",
                 tostring(tracked.name or tracked.spellId), tostring(tracked.unit), tracked.interval or 0,
-                nextTick, buttonLabel, tracked.overlay and "overlay:on" or "overlay:off"))
+                nextTick, buttonLabel, tracked.overlay and "overlay:on" or "overlay:off",
+                tracked.unrestricted and " | live aura data" or ""))
         end
     end
 
