@@ -1,0 +1,10 @@
+# BigWigsMods packager configuration: https://github.com/BigWigsMods/packager
+package-as: TickPulse
+
+enable-nolib-creation: no
+
+ignore:
+  - .github
+  - .luacheckrc
+  - deploy-addon.ps1
+  - TickPulse-logo-heartmonitor.svg

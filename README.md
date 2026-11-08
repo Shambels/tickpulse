@@ -153,3 +153,17 @@ TickPulse is licensed under the MIT License. See [LICENSE](LICENSE).
 - Every push and pull request runs [luacheck](https://github.com/lunarmodules/luacheck) through GitHub Actions (`.github/workflows/luacheck.yml`), using `.luacheckrc`. It catches syntax errors, typos in globals and unused variables before you load the game.
 - To run it locally, install Lua and LuaRocks, then `luarocks install luacheck` and run `luacheck .` in the repository root.
 - When you use a new WoW API global, add it to `read_globals` in `.luacheckrc`.
+
+## Releases (CurseForge / Wago / GitHub)
+
+Releases are built by the [BigWigs packager](https://github.com/BigWigsMods/packager) (`.pkgmeta`, `.github/workflows/release.yml`):
+
+1. Commit your changes and push a tag, for example `git tag v0.3.0` then `git push origin v0.3.0`.
+2. The workflow replaces `@project-version@` in the TOC with the tag, builds `TickPulse-v0.3.0.zip` without the development files, and attaches it to a GitHub release.
+3. To also upload to CurseForge and Wago:
+   - Uncomment the `X-Curse-Project-ID` and `X-Wago-ID` lines in `TickPulse.toc` and fill in your project IDs.
+   - Add `CF_API_KEY` and `WAGO_API_TOKEN` as repository secrets on GitHub (Settings -> Secrets and variables -> Actions).
+
+When the addon is loaded straight from the repository (for example through a junction), the in-game version shows as `@project-version@`. That's expected; packaged builds show the tag.
+
+The packager picks the game version from `## Interface: 16001`. If CurseForge or Wago doesn't map that to WoW Forever yet, the upload step may need a game version override; the GitHub release still works.
